@@ -75,3 +75,20 @@ def test_heartbeat_without_token_when_unconfigured(tmp_path, monkeypatch) -> Non
     open_client = TestClient(create_app(settings))
     dep = str(uuid.uuid4())
     assert open_client.post("/v1/heartbeat", json={"deployment_id": dep}).status_code == 200
+
+
+def test_open_mode_rate_limit_per_deployment(tmp_path, monkeypatch) -> None:
+    from pallas_community_stats.ratelimit import clear_rate_limit_state_for_tests
+
+    monkeypatch.chdir(tmp_path)
+    clear_rate_limit_state_for_tests()
+    settings = Settings(
+        db_path=tmp_path / "rl.db",
+        heartbeat_token="",
+        heartbeat_min_interval_sec=60.0,
+        heartbeat_rate_per_ip_per_min=1000,
+    )
+    c = TestClient(create_app(settings))
+    dep = str(uuid.uuid4())
+    assert c.post("/v1/heartbeat", json={"deployment_id": dep}).status_code == 200
+    assert c.post("/v1/heartbeat", json={"deployment_id": dep}).status_code == 429

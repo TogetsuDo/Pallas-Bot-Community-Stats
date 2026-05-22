@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pallas_community_stats.config import Settings, get_settings
 from pallas_community_stats.db import StatsStore
 from pallas_community_stats.models import HeartbeatBody, HeartbeatResponse, StatsResponse
+from pallas_community_stats.ratelimit import RateLimitExceeded, check_heartbeat_rate_limit, client_ip
 
 
 def _app_settings(request: Request) -> Settings:
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         dependencies=[Depends(_require_heartbeat_auth)],
     )
     async def heartbeat(
+        request: Request,
         body: HeartbeatBody,
         settings: Settings = Depends(_app_settings),
     ) -> HeartbeatResponse:
@@ -64,6 +66,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="ts skew too large",
             )
+        if not (settings.heartbeat_token or "").strip():
+            try:
+                check_heartbeat_rate_limit(
+                    client_host=client_ip(request),
+                    deployment_id=body.deployment_id,
+                    per_ip_per_min=settings.heartbeat_rate_per_ip_per_min,
+                    min_interval_per_deployment_sec=settings.heartbeat_min_interval_sec,
+                )
+            except RateLimitExceeded as e:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=str(e),
+                ) from e
         store.upsert_heartbeat(
             deployment_id=body.deployment_id,
             seen_unix=server_ts,

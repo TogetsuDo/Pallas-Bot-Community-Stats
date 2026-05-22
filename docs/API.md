@@ -28,13 +28,19 @@
 
 ### 鉴权
 
-若服务端配置 `HEARTBEAT_TOKEN`（非空），请求头须带：
+| 中心配置 | 行为 |
+| --- | --- |
+| `HEARTBEAT_TOKEN` **非空** | 须带 `Authorization: Bearer <token>` |
+| `HEARTBEAT_TOKEN` **留空** | 不校验 Bearer，启用 **限流**（见下） |
 
-```http
-Authorization: Bearer <HEARTBEAT_TOKEN>
-```
+公开自托管（如 `stats.pallasbot.top`）采用留空 + 限流；私有部署可自设 token 关闭公开写入。
 
-未配置 token 时，本接口不校验（仅建议调试环境）。
+**公开写入限流**（仅 token 留空时）：
+
+- 单 IP：默认每分钟最多 `HEARTBEAT_RATE_PER_IP_PER_MIN` 次（默认 60）
+- 单 `deployment_id`：默认最短间隔 `HEARTBEAT_MIN_INTERVAL_SEC` 秒（默认 30）
+
+超限返回 **429**。
 
 ### 请求体（JSON）
 
@@ -111,7 +117,9 @@ Authorization: Bearer <HEARTBEAT_TOKEN>
 | `HOST` | `0.0.0.0` | 监听地址 |
 | `PORT` | `8099` | 监听端口 |
 | `DB_PATH` | `data/stats.db` | SQLite 文件路径 |
-| `HEARTBEAT_TOKEN` | 空 | 心跳 Bearer；生产建议设置 |
+| `HEARTBEAT_TOKEN` | 空 | 非空则强制 Bearer；留空为公开写入 + 限流 |
+| `HEARTBEAT_RATE_PER_IP_PER_MIN` | `60` | 公开写入：单 IP 每分钟上限 |
+| `HEARTBEAT_MIN_INTERVAL_SEC` | `30` | 公开写入：同一 deployment 最短间隔（秒） |
 | `ONLINE_TTL_SEC` | `900` | 在线判定窗口（60–86400） |
 | `MAX_CLOCK_SKEW_SEC` | `300` | 客户端 `ts` 允许偏差 |
 
