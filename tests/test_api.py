@@ -38,6 +38,26 @@ def test_heartbeat_requires_token(client: TestClient) -> None:
     assert "server_ts" in resp.json()
 
 
+def test_shields_badges(client: TestClient) -> None:
+    dep = str(uuid.uuid4())
+    headers = {"Authorization": "Bearer secret-token"}
+    client.post(
+        "/v1/heartbeat",
+        json={"deployment_id": dep, "online_bots": 4},
+        headers=headers,
+    )
+    dep_badge = client.get("/v1/badges/deployments-online").json()
+    bots_badge = client.get("/v1/badges/bots-online").json()
+    assert dep_badge == {
+        "schemaVersion": 1,
+        "label": "社区部署",
+        "message": "1 套在线",
+        "color": "fe7d37",
+    }
+    assert bots_badge["message"] == "4"
+    assert bots_badge["label"] == "在线牛"
+
+
 def test_stats_aggregates(client: TestClient) -> None:
     dep_a = str(uuid.uuid4())
     dep_b = str(uuid.uuid4())

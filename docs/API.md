@@ -110,6 +110,23 @@
 | `online_ttl_sec` | 服务端当前在线判定窗口（秒） |
 | `as_of` | 统计快照 UTC 时间（ISO-8601，`Z` 结尾） |
 
+## `GET /v1/badges/deployments-online`、`GET /v1/badges/bots-online`
+
+供 [shields.io Endpoint Badge](https://shields.io/badges/endpoint-badge) 拉取（比 `dynamic/json` 更稳定）。无需鉴权；`Cache-Control: public, max-age=300`。
+
+**200**（示例：`deployments-online`）
+
+```json
+{
+  "schemaVersion": 1,
+  "label": "社区部署",
+  "message": "47 套在线",
+  "color": "fe7d37"
+}
+```
+
+`bots-online` 的 `message` 为在线牛总和的十进制字符串。
+
 ## 环境变量
 
 | 变量 | 默认 | 说明 |

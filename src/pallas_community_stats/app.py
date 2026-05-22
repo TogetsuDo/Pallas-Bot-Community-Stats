@@ -11,6 +11,7 @@ from pallas_community_stats.config import Settings, get_settings
 from pallas_community_stats.db import StatsStore
 from pallas_community_stats.models import HeartbeatBody, HeartbeatResponse, StatsResponse
 from pallas_community_stats.ratelimit import RateLimitExceeded, check_heartbeat_rate_limit, client_ip
+from pallas_community_stats.shields import shields_endpoint_payload
 
 
 def _app_settings(request: Request) -> Settings:
@@ -101,6 +102,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             online_ttl_sec=settings.online_ttl_sec,
             as_of=as_of,
         )
+
+    def _badge_response(label: str, message: str) -> JSONResponse:
+        return JSONResponse(
+            shields_endpoint_payload(label=label, message=message),
+            headers={"Cache-Control": "public, max-age=300"},
+        )
+
+    @app.get("/v1/badges/deployments-online", include_in_schema=True)
+    async def badge_deployments_online(settings: Settings = Depends(_app_settings)) -> JSONResponse:
+        snap = store.aggregate_stats(online_ttl_sec=settings.online_ttl_sec)
+        return _badge_response("社区部署", f"{snap.deployments_online} 套在线")
+
+    @app.get("/v1/badges/bots-online", include_in_schema=True)
+    async def badge_bots_online(settings: Settings = Depends(_app_settings)) -> JSONResponse:
+        snap = store.aggregate_stats(online_ttl_sec=settings.online_ttl_sec)
+        return _badge_response("在线牛", str(snap.bots_online_sum))
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_request, exc: HTTPException):
