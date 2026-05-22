@@ -29,6 +29,15 @@ def check_heartbeat_rate_limit(
 ) -> None:
     if per_ip_per_min <= 0 and min_interval_per_deployment_sec <= 0:
         return
+    from pallas_community_stats.redis_ratelimit import check_heartbeat_rate_limit_redis
+
+    if check_heartbeat_rate_limit_redis(
+        client_host=client_host,
+        deployment_id=deployment_id,
+        per_ip_per_min=per_ip_per_min,
+        min_interval_per_deployment_sec=min_interval_per_deployment_sec,
+    ):
+        return
     now = time.time()
     with _lock:
         if min_interval_per_deployment_sec > 0:

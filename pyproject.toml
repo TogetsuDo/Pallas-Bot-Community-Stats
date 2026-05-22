@@ -11,6 +11,11 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
 ]
 
+[project.optional-dependencies]
+redis = [
+    "redis>=5.2,<6",
+]
+
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",

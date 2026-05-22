@@ -31,10 +31,13 @@ Bot 侧见 [Pallas-Bot](https://github.com/PallasBot/Pallas-Bot) 的 `community_
 ```bash
 cd Pallas-Bot-Community-Stats
 uv sync --group dev
-cp .env.example .env
-# 共用中心：HEARTBEAT_TOKEN 留空；私有实例再设 token
+cp config/stats.example.toml config/stats.toml
+# 共用中心：heartbeat_token 留空；私有实例再设 token
+# 多实例 + 公开写入：在 [env] 配置 REDIS_URL 后 uv sync --extra redis
 uv run pallas-community-stats
 ```
+
+配置说明见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [AGENTS.md](AGENTS.md)。遗留 `.env` 仍可只读合并，勿再作为唯一配置源。
 
 默认监听 `http://0.0.0.0:8099`。
 

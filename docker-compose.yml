@@ -3,8 +3,17 @@ services:
     build: .
     ports:
       - "${PORT:-8099}:8099"
-    env_file:
-      - .env
     volumes:
+      - ./config/stats.toml:/app/config/stats.toml:ro
       - ./data:/app/data
     restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["redis"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
