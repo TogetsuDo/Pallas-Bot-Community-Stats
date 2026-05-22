@@ -1,0 +1,8 @@
+# 国内服务器：docker compose -f docker-compose.yml -f docker-compose.cn.yml up -d --build
+services:
+  stats:
+    build:
+      context: .
+      dockerfile: Dockerfile.cn
+    ports:
+      - "127.0.0.1:8099:8099"

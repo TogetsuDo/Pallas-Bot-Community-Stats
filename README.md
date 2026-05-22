@@ -4,9 +4,9 @@ Pallas-Bot **opt-in** 社区统计中心服务：接收各部署自愿上报的�
 
 Bot 客户端尚未实现；集成约定见 [docs/client-integration.md](docs/client-integration.md)，HTTP 细节见 [docs/API.md](docs/API.md)。
 
-## 生产地址（规划）
+## 生产地址
 
-公网服务计划部署在 **`https://stats.pallasbot.top`**（心跳与公开统计均走 HTTPS）：
+公网服务：**`https://stats.pallasbot.top`**（心跳与公开统计均走 HTTPS）：
 
 | 用途 | URL |
 | --- | --- |
@@ -44,7 +44,7 @@ curl -s -X POST http://127.0.0.1:8099/v1/heartbeat \
 docker compose up -d --build
 ```
 
-数据卷挂载 `./data`，环境变量见 `.env.example`。
+数据卷挂载 `./data`，环境变量见 `.env.example`。公网 HTTPS 建议在宿主机用反向代理；仅本机监听可用 `docker compose -f docker-compose.deploy.yml up -d --build`（见 `Dockerfile.cn`）。
 
 ## 开发
 

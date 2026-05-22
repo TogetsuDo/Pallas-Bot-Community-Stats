@@ -1,0 +1,28 @@
+# 国内/弱网环境构建：不依赖 uv，使用 PyPI 镜像
+FROM python:3.12-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src
+
+ARG PIP_INDEX=https://mirrors.aliyun.com/pypi/simple/
+ARG PIP_TRUSTED_HOST=mirrors.aliyun.com
+
+RUN pip install --no-cache-dir -i "${PIP_INDEX}" --trusted-host "${PIP_TRUSTED_HOST}" \
+    "fastapi>=0.115.0" \
+    "pydantic>=2.10.0" \
+    "pydantic-settings>=2.7.0" \
+    "uvicorn[standard]>=0.34.0"
+
+COPY src ./src
+
+VOLUME ["/app/data"]
+ENV DB_PATH=/app/data/stats.db \
+    HOST=0.0.0.0 \
+    PORT=8099
+
+EXPOSE 8099
+
+CMD ["python", "-m", "pallas_community_stats"]

@@ -1,0 +1,13 @@
+# 生产：仅本机暴露端口，前置 Nginx/Caddy 提供 HTTPS
+services:
+  stats:
+    build:
+      context: .
+      dockerfile: Dockerfile.cn
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    ports:
+      - 127.0.0.1:8099:8099
+    restart: unless-stopped
