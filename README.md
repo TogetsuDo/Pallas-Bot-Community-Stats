@@ -2,11 +2,23 @@
 
 Pallas-Bot **opt-in** 社区统计中心服务：接收各部署自愿上报的心跳，对外提供公开的部署数 / 在线数聚合 API。
 
-Bot 客户端尚未实现；集成约定见 [docs/client-integration.md](docs/client-integration.md)，HTTP 细节见 [docs/API.md](docs/API.md)。
+Bot 侧见 [Pallas-Bot](https://github.com/PallasBot/Pallas-Bot) 的 `community_stats` 插件；约定见 [docs/client-integration.md](docs/client-integration.md)，HTTP 见 [docs/API.md](docs/API.md)。
+
+## 官方共用中心
+
+**`https://stats.pallasbot.top`** 为社区**唯一推荐的公共统计中心**：各部署默认 opt-in 上报，**无需分发 token**。
+
+运维约定（共用实例）：
+
+- **`HEARTBEAT_TOKEN` 保持留空**（公开写入 + 限流）；不要对全体用户发私有密钥。
+- 依赖 `HEARTBEAT_RATE_PER_IP_PER_MIN`、`HEARTBEAT_MIN_INTERVAL_SEC` 挡刷；异常可结合日志与 `stats.db` 备份。
+- 反代仅暴露 443，应用监听 `127.0.0.1:8099`。
+
+若另建私有中心，可自行设置 `HEARTBEAT_TOKEN`，Bot 端再配置对应 `token`（与公共实例无关）。
 
 ## 生产地址
 
-公网服务：**`https://stats.pallasbot.top`**（心跳与公开统计均走 HTTPS）：
+公网 API 基址：**`https://stats.pallasbot.top`**：
 
 | 用途 | URL |
 | --- | --- |
@@ -20,7 +32,7 @@ Bot 客户端尚未实现；集成约定见 [docs/client-integration.md](docs/cl
 cd Pallas-Bot-Community-Stats
 uv sync --group dev
 cp .env.example .env
-# 生产请设置 HEARTBEAT_TOKEN
+# 共用中心：HEARTBEAT_TOKEN 留空；私有实例再设 token
 uv run pallas-community-stats
 ```
 
