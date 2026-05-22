@@ -4,6 +4,16 @@ Pallas-Bot **opt-in** 社区统计中心服务：接收各部署自愿上报的�
 
 Bot 客户端尚未实现；集成约定见 [docs/client-integration.md](docs/client-integration.md)，HTTP 细节见 [docs/API.md](docs/API.md)。
 
+## 生产地址（规划）
+
+公网服务计划部署在 **`https://stats.pallasbot.top`**（心跳与公开统计均走 HTTPS）：
+
+| 用途 | URL |
+| --- | --- |
+| 公开统计 | `GET https://stats.pallasbot.top/v1/stats` |
+| 心跳上报 | `POST https://stats.pallasbot.top/v1/heartbeat` |
+| 存活探针 | `GET https://stats.pallasbot.top/health` |
+
 ## 快速开始
 
 ```bash

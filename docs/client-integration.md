@@ -5,7 +5,7 @@
 ## 启用方式
 
 - `config/pallas.toml` 中 `[community_stats] enabled = true`（默认 `false`）。
-- 配置 `endpoint` 为中心服务 `POST /v1/heartbeat` 的完整 URL。
+- 配置 `endpoint` 为中心服务完整 URL，例如 `https://stats.pallasbot.top/v1/heartbeat`。
 - 可选 `token`，与中心 `HEARTBEAT_TOKEN` 一致。
 
 ## `deployment_id`

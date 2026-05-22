@@ -2,6 +2,8 @@
 
 版本：**v1**（路径前缀 `/v1`）。Bot 客户端实现见 [client-integration.md](./client-integration.md)。
 
+生产基址（规划）：**`https://stats.pallasbot.top`**（示例：`GET https://stats.pallasbot.top/v1/stats`）。
+
 ## 术语
 
 | 术语 | 含义 |
