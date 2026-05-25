@@ -64,20 +64,23 @@ def test_stats_aggregates(client: TestClient) -> None:
     headers = {"Authorization": "Bearer secret-token"}
     client.post(
         "/v1/heartbeat",
-        json={"deployment_id": dep_a, "online_bots": 2},
+        json={"deployment_id": dep_a, "online_bots": 2, "sharded": True, "shard_workers": 3},
         headers=headers,
     )
     client.post(
         "/v1/heartbeat",
-        json={"deployment_id": dep_b, "online_bots": 1},
+        json={"deployment_id": dep_b, "online_bots": 1, "sharded": False},
         headers=headers,
     )
     stats = client.get("/v1/stats").json()
     assert stats["deployments_total"] == 2
     assert stats["deployments_online"] == 2
     assert stats["bots_online_sum"] == 3
+    assert stats["deployments_online_sharded"] == 1
+    assert stats["shard_workers_online_sum"] == 3
     assert stats["online_ttl_sec"] == 900
     assert stats["as_of"].endswith("Z")
+    assert stats["corpus"]["contexts_total"] == 0
 
 
 def test_heartbeat_rejects_bad_uuid(client: TestClient) -> None:

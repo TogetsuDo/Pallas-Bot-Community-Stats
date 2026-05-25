@@ -297,3 +297,18 @@ class CorpusStore:
             """,
             (count, answer_time, dumps_messages(messages), khash, group_id, answer_keywords),
         )
+
+    def aggregate_public_stats(self) -> dict[str, int]:
+        with self._lock, self._connect() as conn:
+            ctx_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_contexts").fetchone()
+            ans_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_answers").fetchone()
+            enr_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_tokens").fetchone()
+            contrib_row = conn.execute(
+                "SELECT COUNT(*) AS c FROM corpus_tokens WHERE contribute_enabled = 1"
+            ).fetchone()
+        return {
+            "contexts_total": int(ctx_row["c"] if ctx_row else 0),
+            "answers_total": int(ans_row["c"] if ans_row else 0),
+            "enrollments_total": int(enr_row["c"] if enr_row else 0),
+            "contribute_enabled_total": int(contrib_row["c"] if contrib_row else 0),
+        }

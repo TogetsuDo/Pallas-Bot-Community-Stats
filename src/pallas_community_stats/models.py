@@ -38,3 +38,6 @@ class StatsResponse(BaseModel):
     bots_online_sum: int
     online_ttl_sec: int
     as_of: str
+    deployments_online_sharded: int = 0
+    shard_workers_online_sum: int = 0
+    corpus: dict[str, int] | None = None

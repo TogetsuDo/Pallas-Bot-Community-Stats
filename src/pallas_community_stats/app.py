@@ -98,12 +98,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def stats(settings: Settings = Depends(_app_settings)) -> StatsResponse:
         snap = store.aggregate_stats(online_ttl_sec=settings.online_ttl_sec)
         as_of = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        corpus_stats: dict[str, int] | None = None
+        if cfg.corpus_enabled:
+            corpus_stats = corpus_store.aggregate_public_stats()
         return StatsResponse(
             deployments_total=snap.deployments_total,
             deployments_online=snap.deployments_online,
             bots_online_sum=snap.bots_online_sum,
+            deployments_online_sharded=snap.deployments_online_sharded,
+            shard_workers_online_sum=snap.shard_workers_online_sum,
             online_ttl_sec=settings.online_ttl_sec,
             as_of=as_of,
+            corpus=corpus_stats,
         )
 
     def _badge_response(label: str, message: str) -> JSONResponse:

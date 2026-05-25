@@ -24,6 +24,8 @@ class StatsSnapshot:
     deployments_total: int
     deployments_online: int
     bots_online_sum: int
+    deployments_online_sharded: int = 0
+    shard_workers_online_sum: int = 0
 
 
 class StatsStore:
@@ -105,7 +107,11 @@ class StatsStore:
                 """
                 SELECT
                     COUNT(*) AS deployments_online,
-                    COALESCE(SUM(online_bots), 0) AS bots_online_sum
+                    COALESCE(SUM(online_bots), 0) AS bots_online_sum,
+                    COALESCE(SUM(CASE WHEN sharded = 1 THEN 1 ELSE 0 END), 0)
+                        AS deployments_online_sharded,
+                    COALESCE(SUM(CASE WHEN sharded = 1 THEN COALESCE(shard_workers, 0) ELSE 0 END), 0)
+                        AS shard_workers_online_sum
                 FROM deployments
                 WHERE last_seen_unix >= ?
                 """,
@@ -115,4 +121,10 @@ class StatsStore:
             deployments_total=int(total_row["c"] if total_row else 0),
             deployments_online=int(online_row["deployments_online"] if online_row else 0),
             bots_online_sum=int(online_row["bots_online_sum"] if online_row else 0),
+            deployments_online_sharded=int(
+                online_row["deployments_online_sharded"] if online_row else 0
+            ),
+            shard_workers_online_sum=int(
+                online_row["shard_workers_online_sum"] if online_row else 0
+            ),
         )

@@ -97,8 +97,16 @@
   "deployments_total": 128,
   "deployments_online": 47,
   "bots_online_sum": 93,
+  "deployments_online_sharded": 12,
+  "shard_workers_online_sum": 84,
   "online_ttl_sec": 900,
-  "as_of": "2026-05-22T12:00:00Z"
+  "as_of": "2026-05-22T12:00:00Z",
+  "corpus": {
+    "contexts_total": 120,
+    "answers_total": 5400,
+    "enrollments_total": 38,
+    "contribute_enabled_total": 35
+  }
 }
 ```
 
@@ -107,8 +115,15 @@
 | `deployments_total` | 历史上报过的 `deployment_id` 去重数 |
 | `deployments_online` | 在 TTL 内有心跳的部署数 |
 | `bots_online_sum` | 上述在线部署的 `online_bots` 之和 |
+| `deployments_online_sharded` | 在线部署中 `sharded=true` 的数量 |
+| `shard_workers_online_sum` | 上述分片部署的 `shard_workers` 之和 |
 | `online_ttl_sec` | 服务端当前在线判定窗口（秒） |
 | `as_of` | 统计快照 UTC 时间（ISO-8601，`Z` 结尾） |
+| `corpus` | 语料池公开计数（`CORPUS_ENABLED=false` 时为 `null`） |
+| `corpus.contexts_total` | 社区池 context 数 |
+| `corpus.answers_total` | 社区池 answer 数 |
+| `corpus.enrollments_total` | 已 enroll 的 deployment 数 |
+| `corpus.contribute_enabled_total` | 允许 contribute 的 token 数 |
 
 ## `GET /v1/badges/deployments-online`、`GET /v1/badges/bots-online`
 
@@ -153,7 +168,7 @@
 
 ### `POST /v1/corpus/contribute`
 
-须 token 且 `contribute` 权限（默认 enroll 为 `false`）。
+须 token 且 `contribute` 权限（默认 enroll 为 `true`，可关）。
 
 `op=upsert_answer`：`keywords`、`answer_keywords`、`message`、`group_id`（社区语料用 `0`）等。  
 `op=insert`：完整 `context` 对象。
