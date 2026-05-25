@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         validation_alias="CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN",
     )
     corpus_default_read: bool = Field(default=True, validation_alias="CORPUS_DEFAULT_READ")
-    corpus_default_contribute: bool = Field(default=False, validation_alias="CORPUS_DEFAULT_CONTRIBUTE")
+    corpus_default_contribute: bool = Field(default=True, validation_alias="CORPUS_DEFAULT_CONTRIBUTE")
     corpus_default_merge_strategy: str = Field(default="local_first", validation_alias="CORPUS_DEFAULT_MERGE_STRATEGY")
     corpus_read_rpm: int = Field(default=120, ge=1, le=10_000, validation_alias="CORPUS_READ_RPM")
     corpus_contribute_per_day: int = Field(default=0, ge=0, le=1_000_000, validation_alias="CORPUS_CONTRIBUTE_PER_DAY")

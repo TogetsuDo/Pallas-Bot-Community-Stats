@@ -20,7 +20,7 @@ max_clock_skew_sec = 300
 [env]
 CORPUS_ENABLED = "true"
 CORPUS_PUBLIC_API_BASE = "https://stats.pallasbot.top/v1/corpus"
-CORPUS_DEFAULT_CONTRIBUTE = "false"
+CORPUS_DEFAULT_CONTRIBUTE = "true"
 CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN = "false"
 
 # 多实例 + 公开写入：启用 Redis 分布式限流

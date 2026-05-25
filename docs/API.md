@@ -172,7 +172,7 @@
 | `MAX_CLOCK_SKEW_SEC` | `300` | 客户端 `ts` 允许偏差 |
 | `CORPUS_ENABLED` | `true` | 是否挂载 `/v1/corpus/*` |
 | `CORPUS_PUBLIC_API_BASE` | 空 | enroll 返回的 `api_base`；空则从请求推导 |
-| `CORPUS_DEFAULT_CONTRIBUTE` | `false` | 新 enroll 默认是否允许 contribute |
+| `CORPUS_DEFAULT_CONTRIBUTE` | `true` | 新 enroll 默认是否允许 contribute |
 | `CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN` | `false` | enroll 是否要求心跳 Bearer |
 | `CORPUS_TOKEN_TTL_SEC` | `0` | token 有效期；0 表示不过期 |
 

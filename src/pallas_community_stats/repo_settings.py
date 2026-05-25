@@ -7,19 +7,20 @@ import tomllib
 from functools import lru_cache
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-
 
 def repo_root() -> Path:
-    return _REPO_ROOT
+    for candidate in (Path("/app"), Path.cwd(), Path(__file__).resolve().parents[2]):
+        if (candidate / "config" / "stats.toml").is_file():
+            return candidate
+    return Path(__file__).resolve().parents[2]
 
 
 def repo_config_path() -> Path:
-    return _REPO_ROOT / "config" / "stats.toml"
+    return repo_root() / "config" / "stats.toml"
 
 
 def repo_env_path() -> Path:
-    return _REPO_ROOT / ".env"
+    return repo_root() / ".env"
 
 
 def _load_toml_upper() -> dict[str, str]:

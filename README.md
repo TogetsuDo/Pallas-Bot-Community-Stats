@@ -7,7 +7,7 @@ Pallas-Bot **opt-in** 社区统计与**共享语料**中心：接收各部署自
 
 ## 官方公共实例
 
-**`https://stats.pallasbot.top`** 为社区推荐的生产入口（`*.pallasbot.top` 子域即可，主域 `pallasbot.top` 在就行）。
+**`https://stats.pallasbot.top`** 为社区推荐的生产入口。
 
 | 用途 | URL |
 | --- | --- |
@@ -49,7 +49,7 @@ heartbeat_token = ""   # 公共实例留空；私有实例再设 Bearer
 [env]
 CORPUS_ENABLED = "true"
 CORPUS_PUBLIC_API_BASE = "https://stats.pallasbot.top/v1/corpus"
-CORPUS_DEFAULT_CONTRIBUTE = "false"
+CORPUS_DEFAULT_CONTRIBUTE = "true"
 ```
 
 ### 2. 启动
@@ -74,7 +74,18 @@ IMAGE_TAG=sha-28a6ab6 docker compose pull && docker compose up -d
 
 ### 3. HTTPS 反向代理
 
-公网请用 Nginx/Caddy 反代到 `127.0.0.1:8099`，示例见 [deploy/nginx-stats.pallasbot.top.conf](deploy/nginx-stats.pallasbot.top.conf)。备案过渡期可只暴露 heartbeat/stats，见 [deploy/nginx-pallas-community-stats-locations.conf](deploy/nginx-pallas-community-stats-locations.conf)。
+公网请用 Nginx/Caddy 反代到 `127.0.0.1:8099`。
+
+**推荐（独立子域，一条 `location /` 覆盖全部 API）**：[deploy/nginx-stats.pallasbot.top.conf](deploy/nginx-stats.pallasbot.top.conf)
+
+```bash
+sudo cp deploy/nginx-stats.pallasbot.top.conf /etc/nginx/sites-available/stats.pallasbot.top
+sudo ln -sf /etc/nginx/sites-available/stats.pallasbot.top /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d stats.pallasbot.top
+```
+
+备案过渡期若只能挂在已有域名下，用片段 [deploy/nginx-pallas-community-stats-locations.conf](deploy/nginx-pallas-community-stats-locations.conf)（含 `/v1/corpus/`）。
 
 ### 4. 多实例 + Redis 限流（可选）
 
@@ -100,7 +111,7 @@ docker compose --profile redis up -d
 | --- | --- |
 | `heartbeat_token` | **留空**（公开写入 + 限流）；勿向全体 Bot 用户发私钥 |
 | 限流 | `heartbeat_rate_per_ip_per_min`、`heartbeat_min_interval_sec` |
-| 语料贡献 | 默认 **关**（`corpus_default_contribute = false`） |
+| 语料贡献 | 默认 **开**（`corpus_default_contribute = true`）；Bot auto enroll 后 mirror 学习结果 |
 | 备份 | 定期备份 `data/stats.db` |
 | 暴露面 | 反代只开 443；应用 **不要** `0.0.0.0:8099` 裸奔公网 |
 
@@ -139,6 +150,20 @@ uv run pytest
 ```
 
 详见 [CONTRIBUTING.md](CONTRIBUTING.md)、[AGENTS.md](AGENTS.md)。
+
+## 预灌社区语料（可选）
+
+中心刚启用时池子为空，可从某台 Bot 本地 PG **挑选一部分**上传：
+
+```bash
+# 在 Pallas-Bot 仓库（feat/corpus-phase1+）
+uv run python tools/seed_community_corpus.py --dry-run
+uv run python tools/seed_community_corpus.py --limit 2000 --min-answer-count 3
+```
+
+仅上传 `keywords` + 短句，`group_id=0`；默认 enroll 后 POST 到 `stats.pallasbot.top`。
+
+---
 
 ## CI 与发版
 
