@@ -125,6 +125,71 @@
 | `corpus.enrollments_total` | 已 enroll 的 deployment 数 |
 | `corpus.contribute_enabled_total` | 允许 contribute 的 token 数 |
 
+## `GET /v1/stats/corpus`
+
+语料池专用监控指标（比 `/v1/stats` 的 `corpus` 嵌套字段更完整）。无需鉴权；`CORPUS_ENABLED=false` 时 **503**。
+
+**200**
+
+```json
+{
+  "online_ttl_sec": 900,
+  "as_of": "2026-05-25T12:00:00Z",
+  "corpus": {
+    "contexts_total": 120,
+    "answers_total": 5400,
+    "answer_hits_sum": 12800,
+    "enrollments_total": 38,
+    "enrollments_online": 22,
+    "enrollments_recent_24h": 3,
+    "read_enabled_total": 38,
+    "contribute_enabled_total": 35
+  }
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `enrollments_total` | 历史上 enroll 过的 deployment 数（与 token 表行数一致） |
+| `enrollments_online` | 在 `online_ttl_sec` 内心跳的 deployment 中，已 enroll 的数量 |
+| `enrollments_recent_24h` | 近 24 小时新 enroll 数 |
+| `read_enabled_total` | 允许 read 的 token 数 |
+| `answer_hits_sum` | 社区池 answer 行 `count` 字段合计（触发权重累计） |
+
+## `GET /v1/monitor/overview`
+
+控制台/WebUI 用的一页式监控快照：部署心跳 + 语料池 + 服务开关。无需鉴权。
+
+**200**
+
+```json
+{
+  "online_ttl_sec": 900,
+  "as_of": "2026-05-25T12:00:00Z",
+  "corpus_enabled": true,
+  "deployments": {
+    "deployments_total": 128,
+    "deployments_online": 47,
+    "bots_online_sum": 93,
+    "catalog_bots_online_sum": 110,
+    "deployments_online_sharded": 12,
+    "shard_workers_online_sum": 84,
+    "active_recent_24h": 52,
+    "online_versions": [
+      { "version": "3.1.0", "count": 18 },
+      { "version": "3.0.2", "count": 9 }
+    ]
+  },
+  "corpus": { "...": "同 /v1/stats/corpus 的 corpus 对象；corpus 关闭时为 null" }
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `deployments.catalog_bots_online_sum` | 在线部署上报的 `catalog_bots` 之和 |
+| `deployments.active_recent_24h` | 近 24 小时有心跳的 deployment 数 |
+| `deployments.online_versions` | 在线部署版本 Top 5（不含 deployment_id） |
+
 ## `GET /v1/badges/deployments-online`、`GET /v1/badges/bots-online`
 
 供 [shields.io Endpoint Badge](https://shields.io/badges/endpoint-badge) 拉取（比 `dynamic/json` 更稳定）。无需鉴权；`Cache-Control: public, max-age=300`。

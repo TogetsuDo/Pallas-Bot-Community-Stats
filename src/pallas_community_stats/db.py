@@ -99,6 +99,53 @@ class StatsStore:
             )
             conn.commit()
 
+    def aggregate_deployment_monitor(self, *, online_ttl_sec: int) -> dict[str, int | list[dict[str, int | str]]]:
+        cutoff = int(time.time()) - online_ttl_sec
+        recent_cutoff = int(time.time()) - 86400
+        with self._lock, self._connect() as conn:
+            total_row = conn.execute("SELECT COUNT(*) AS c FROM deployments").fetchone()
+            online_row = conn.execute(
+                """
+                SELECT
+                    COUNT(*) AS deployments_online,
+                    COALESCE(SUM(online_bots), 0) AS bots_online_sum,
+                    COALESCE(SUM(catalog_bots), 0) AS catalog_bots_online_sum,
+                    COALESCE(SUM(CASE WHEN sharded = 1 THEN 1 ELSE 0 END), 0)
+                        AS deployments_online_sharded,
+                    COALESCE(SUM(CASE WHEN sharded = 1 THEN COALESCE(shard_workers, 0) ELSE 0 END), 0)
+                        AS shard_workers_online_sum
+                FROM deployments
+                WHERE last_seen_unix >= ?
+                """,
+                (cutoff,),
+            ).fetchone()
+            recent_row = conn.execute(
+                "SELECT COUNT(*) AS c FROM deployments WHERE last_seen_unix >= ?",
+                (recent_cutoff,),
+            ).fetchone()
+            version_rows = conn.execute(
+                """
+                SELECT version, COUNT(*) AS c
+                FROM deployments
+                WHERE last_seen_unix >= ? AND version != ''
+                GROUP BY version
+                ORDER BY c DESC, version ASC
+                LIMIT 5
+                """,
+                (cutoff,),
+            ).fetchall()
+        online_versions = [{"version": str(row["version"]), "count": int(row["c"])} for row in version_rows]
+        return {
+            "deployments_total": int(total_row["c"] if total_row else 0),
+            "deployments_online": int(online_row["deployments_online"] if online_row else 0),
+            "bots_online_sum": int(online_row["bots_online_sum"] if online_row else 0),
+            "catalog_bots_online_sum": int(online_row["catalog_bots_online_sum"] if online_row else 0),
+            "deployments_online_sharded": int(online_row["deployments_online_sharded"] if online_row else 0),
+            "shard_workers_online_sum": int(online_row["shard_workers_online_sum"] if online_row else 0),
+            "active_recent_24h": int(recent_row["c"] if recent_row else 0),
+            "online_versions": online_versions,
+        }
+
     def aggregate_stats(self, *, online_ttl_sec: int) -> StatsSnapshot:
         cutoff = int(time.time()) - online_ttl_sec
         with self._lock, self._connect() as conn:
@@ -121,10 +168,6 @@ class StatsStore:
             deployments_total=int(total_row["c"] if total_row else 0),
             deployments_online=int(online_row["deployments_online"] if online_row else 0),
             bots_online_sum=int(online_row["bots_online_sum"] if online_row else 0),
-            deployments_online_sharded=int(
-                online_row["deployments_online_sharded"] if online_row else 0
-            ),
-            shard_workers_online_sum=int(
-                online_row["shard_workers_online_sum"] if online_row else 0
-            ),
+            deployments_online_sharded=int(online_row["deployments_online_sharded"] if online_row else 0),
+            shard_workers_online_sum=int(online_row["shard_workers_online_sum"] if online_row else 0),
         )

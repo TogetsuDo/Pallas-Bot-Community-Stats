@@ -299,16 +299,53 @@ class CorpusStore:
         )
 
     def aggregate_public_stats(self) -> dict[str, int]:
+        return {
+            k: int(v)
+            for k, v in self.aggregate_monitor_stats(online_cutoff_unix=0).items()
+            if k
+            in {
+                "contexts_total",
+                "answers_total",
+                "enrollments_total",
+                "contribute_enabled_total",
+            }
+        }
+
+    def aggregate_monitor_stats(self, *, online_cutoff_unix: int) -> dict[str, int]:
+        recent_cutoff = int(time.time()) - 86400
         with self._lock, self._connect() as conn:
             ctx_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_contexts").fetchone()
             ans_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_answers").fetchone()
+            hits_row = conn.execute("SELECT COALESCE(SUM(count), 0) AS s FROM corpus_answers").fetchone()
             enr_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_tokens").fetchone()
+            read_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_tokens WHERE read_enabled = 1").fetchone()
             contrib_row = conn.execute(
                 "SELECT COUNT(*) AS c FROM corpus_tokens WHERE contribute_enabled = 1"
             ).fetchone()
+            recent_row = conn.execute(
+                "SELECT COUNT(*) AS c FROM corpus_tokens WHERE created_unix >= ?",
+                (recent_cutoff,),
+            ).fetchone()
+            if online_cutoff_unix > 0:
+                online_row = conn.execute(
+                    """
+                    SELECT COUNT(*) AS c
+                    FROM corpus_tokens t
+                    INNER JOIN deployments d ON d.deployment_id = t.deployment_id
+                    WHERE d.last_seen_unix >= ?
+                    """,
+                    (online_cutoff_unix,),
+                ).fetchone()
+            else:
+                online_row = None
+        enrollments_online = int(online_row["c"] if online_row else 0)
         return {
             "contexts_total": int(ctx_row["c"] if ctx_row else 0),
             "answers_total": int(ans_row["c"] if ans_row else 0),
+            "answer_hits_sum": int(hits_row["s"] if hits_row else 0),
             "enrollments_total": int(enr_row["c"] if enr_row else 0),
+            "enrollments_online": enrollments_online,
+            "enrollments_recent_24h": int(recent_row["c"] if recent_row else 0),
+            "read_enabled_total": int(read_row["c"] if read_row else 0),
             "contribute_enabled_total": int(contrib_row["c"] if contrib_row else 0),
         }

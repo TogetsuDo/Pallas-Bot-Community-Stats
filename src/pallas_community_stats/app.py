@@ -11,7 +11,16 @@ from pallas_community_stats.config import Settings, get_settings
 from pallas_community_stats.corpus_routes import build_corpus_router
 from pallas_community_stats.corpus_store import CorpusStore
 from pallas_community_stats.db import StatsStore
-from pallas_community_stats.models import HeartbeatBody, HeartbeatResponse, StatsResponse
+from pallas_community_stats.models import (
+    CorpusMonitorStats,
+    CorpusStatsResponse,
+    DeploymentMonitorStats,
+    HeartbeatBody,
+    HeartbeatResponse,
+    MonitorOverviewResponse,
+    StatsResponse,
+    VersionCount,
+)
 from pallas_community_stats.ratelimit import RateLimitExceeded, check_heartbeat_rate_limit, client_ip
 from pallas_community_stats.shields import shields_endpoint_payload
 
@@ -110,6 +119,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             online_ttl_sec=settings.online_ttl_sec,
             as_of=as_of,
             corpus=corpus_stats,
+        )
+
+    def monitor_as_of() -> str:
+        return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    def build_corpus_monitor(settings: Settings) -> CorpusMonitorStats | None:
+        if not cfg.corpus_enabled:
+            return None
+        cutoff = int(time.time()) - settings.online_ttl_sec
+        raw = corpus_store.aggregate_monitor_stats(online_cutoff_unix=cutoff)
+        return CorpusMonitorStats(**raw)
+
+    @app.get("/v1/stats/corpus", response_model=CorpusStatsResponse)
+    async def stats_corpus(settings: Settings = Depends(_app_settings)) -> CorpusStatsResponse:
+        corpus = build_corpus_monitor(settings)
+        if corpus is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="corpus disabled",
+            )
+        return CorpusStatsResponse(
+            online_ttl_sec=settings.online_ttl_sec,
+            as_of=monitor_as_of(),
+            corpus=corpus,
+        )
+
+    @app.get("/v1/monitor/overview", response_model=MonitorOverviewResponse)
+    async def monitor_overview(settings: Settings = Depends(_app_settings)) -> MonitorOverviewResponse:
+        dep_raw = store.aggregate_deployment_monitor(online_ttl_sec=settings.online_ttl_sec)
+        versions = [VersionCount(**row) for row in dep_raw.pop("online_versions", [])]
+        deployments = DeploymentMonitorStats(**dep_raw, online_versions=versions)
+        return MonitorOverviewResponse(
+            online_ttl_sec=settings.online_ttl_sec,
+            as_of=monitor_as_of(),
+            corpus_enabled=cfg.corpus_enabled,
+            deployments=deployments,
+            corpus=build_corpus_monitor(settings),
         )
 
     def _badge_response(label: str, message: str) -> JSONResponse:

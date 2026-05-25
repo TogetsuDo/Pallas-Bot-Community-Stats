@@ -41,3 +41,44 @@ class StatsResponse(BaseModel):
     deployments_online_sharded: int = 0
     shard_workers_online_sum: int = 0
     corpus: dict[str, int] | None = None
+
+
+class VersionCount(BaseModel):
+    version: str
+    count: int
+
+
+class DeploymentMonitorStats(BaseModel):
+    deployments_total: int
+    deployments_online: int
+    bots_online_sum: int
+    catalog_bots_online_sum: int
+    deployments_online_sharded: int
+    shard_workers_online_sum: int
+    active_recent_24h: int
+    online_versions: list[VersionCount] = Field(default_factory=list)
+
+
+class CorpusMonitorStats(BaseModel):
+    contexts_total: int
+    answers_total: int
+    answer_hits_sum: int
+    enrollments_total: int
+    enrollments_online: int
+    enrollments_recent_24h: int
+    read_enabled_total: int
+    contribute_enabled_total: int
+
+
+class CorpusStatsResponse(BaseModel):
+    online_ttl_sec: int
+    as_of: str
+    corpus: CorpusMonitorStats
+
+
+class MonitorOverviewResponse(BaseModel):
+    online_ttl_sec: int
+    as_of: str
+    corpus_enabled: bool
+    deployments: DeploymentMonitorStats
+    corpus: CorpusMonitorStats | None = None
