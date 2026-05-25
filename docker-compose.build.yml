@@ -1,0 +1,6 @@
+# 从源码构建（贡献者 / 无 Hub 拉取时）
+# docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  stats:
+    build: .
+    image: pallas-community-stats:local

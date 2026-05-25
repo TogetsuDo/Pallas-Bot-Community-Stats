@@ -1,0 +1,6 @@
+# 本地调试：对外暴露端口（勿用于公网裸奔）
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+services:
+  stats:
+    ports:
+      - "${PORT:-8099}:8099"

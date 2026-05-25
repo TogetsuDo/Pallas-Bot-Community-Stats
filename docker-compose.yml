@@ -1,12 +1,24 @@
+# 生产默认：拉取预构建镜像，仅本机暴露 8099（前置 Nginx/Caddy 提供 HTTPS）
+name: pallas-community-stats
+
 services:
   stats:
-    build: .
+    image: togetsudo/pallas-community-stats:${IMAGE_TAG:-latest}
+    container_name: pallas-community-stats
+    restart: unless-stopped
     ports:
-      - "${PORT:-8099}:8099"
+      - "127.0.0.1:${PORT:-8099}:8099"
     volumes:
       - ./config/stats.toml:/app/config/stats.toml:ro
       - ./data:/app/data
-    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8099/health', timeout=3)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   redis:
     image: redis:7-alpine

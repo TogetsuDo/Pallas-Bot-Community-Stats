@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  DOCKERHUB_IMAGE: togetsudo/pallas-community-stats
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -35,4 +38,6 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/pallas-community-stats:latest
+          tags: |
+            ${{ env.DOCKERHUB_IMAGE }}:latest
+            ${{ env.DOCKERHUB_IMAGE }}:sha-${{ github.sha }}

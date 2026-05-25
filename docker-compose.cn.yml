@@ -1,8 +1,3 @@
-# 国内服务器：docker compose -f docker-compose.yml -f docker-compose.cn.yml up -d --build
-services:
-  stats:
-    build:
-      context: .
-      dockerfile: Dockerfile.cn
-    ports:
-      - "127.0.0.1:8099:8099"
+# 国内服务器：与默认 compose 相同；拉取 Hub 慢时请先配置 Docker 镜像加速
+include:
+  - docker-compose.yml
