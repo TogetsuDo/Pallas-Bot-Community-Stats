@@ -8,6 +8,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from pallas_community_stats.config import Settings, get_settings
+from pallas_community_stats.corpus_routes import build_corpus_router
+from pallas_community_stats.corpus_store import CorpusStore
 from pallas_community_stats.db import StatsStore
 from pallas_community_stats.models import HeartbeatBody, HeartbeatResponse, StatsResponse
 from pallas_community_stats.ratelimit import RateLimitExceeded, check_heartbeat_rate_limit, client_ip
@@ -34,6 +36,7 @@ def _require_heartbeat_auth(
 def create_app(settings: Settings | None = None) -> FastAPI:
     cfg = settings or get_settings()
     store = StatsStore(cfg.db_path)
+    corpus_store = CorpusStore(cfg.db_path)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -119,10 +122,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         snap = store.aggregate_stats(online_ttl_sec=settings.online_ttl_sec)
         return _badge_response("在线牛", str(snap.bots_online_sum))
 
+    if cfg.corpus_enabled:
+        app.include_router(
+            build_corpus_router(
+                store=corpus_store,
+                settings=cfg,
+                require_heartbeat_auth=_require_heartbeat_auth,
+            )
+        )
+
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_request, exc: HTTPException):
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     app.state.settings = cfg
     app.state.store = store
+    app.state.corpus_store = corpus_store
     return app

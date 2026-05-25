@@ -33,7 +33,8 @@ uv run pallas-community-stats
 ## 约定
 
 - API 变更须同步 `docs/API.md` 与 `docs/client-integration.md`。
-- 不存储 QQ、群号、消息；仅 `deployment_id` 与聚合计数。
+- 不存储 QQ、群号、消息正文；心跳仅 `deployment_id` 与聚合计数。
+- **语料 API**（`/v1/corpus/*`）仅存匿名 `keywords` 与短句回复，不含 QQ/群号；`group_id=0` 为社区全局语料。
 - 默认不提交 `config/stats.toml`、`.env`、`data/`。
 
 ## Bot 侧

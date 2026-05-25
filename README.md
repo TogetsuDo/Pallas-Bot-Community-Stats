@@ -6,7 +6,7 @@ Bot 侧见 [Pallas-Bot](https://github.com/PallasBot/Pallas-Bot) 的 `community_
 
 ## 官方共用中心
 
-**`https://stats.pallasbot.top`** 为社区**唯一推荐的公共统计中心**：各部署默认 opt-in 上报，**无需分发 token**。
+**`https://stats.pallasbot.top`** 为社区**唯一推荐的公共统计与语料中心**（`*.pallasbot.top` 子域即可，主域 `pallasbot.top` 在就行）：各部署默认 opt-in 上报与 auto enroll，**无需分发 token**。
 
 运维约定（共用实例）：
 
@@ -25,6 +25,10 @@ Bot 侧见 [Pallas-Bot](https://github.com/PallasBot/Pallas-Bot) 的 `community_
 | 公开统计 | `GET https://stats.pallasbot.top/v1/stats` |
 | 心跳上报 | `POST https://stats.pallasbot.top/v1/heartbeat` |
 | 存活探针 | `GET https://stats.pallasbot.top/health` |
+| 语料 enroll | `POST https://stats.pallasbot.top/v1/corpus/enroll` |
+| 语料读取 | `GET https://stats.pallasbot.top/v1/corpus/context` |
+
+生产可改用其它 **`*.pallasbot.top`** 子域：在 `config/stats.toml` 设 `corpus_public_api_base = "https://<子域>/v1/corpus"`，反代指向本服务即可。
 
 ## 快速开始
 
@@ -54,6 +58,8 @@ curl -s -X POST http://127.0.0.1:8099/v1/heartbeat \
 ```
 
 ## Docker
+
+预构建镜像（`main` 推送后自动发布）：`docker pull <DOCKERHUB_USERNAME>/pallas-community-stats:latest`
 
 ```bash
 docker compose up -d --build

@@ -2,7 +2,7 @@
 
 版本：**v1**（路径前缀 `/v1`）。Bot 客户端实现见 [client-integration.md](./client-integration.md)。
 
-生产基址：**`https://stats.pallasbot.top`**（示例：`GET https://stats.pallasbot.top/v1/stats`）。
+生产基址：**`https://stats.pallasbot.top`**（示例：`GET https://stats.pallasbot.top/v1/stats`）。服务可部署在任意 **`*.pallasbot.top`** 子域，中心配置 `CORPUS_PUBLIC_API_BASE` 与反代即可，Bot 以 enroll 返回的 `api_base` 为准。
 
 ## 术语
 
@@ -127,6 +127,37 @@
 
 `bots-online` 的 `message` 为在线牛总和的十进制字符串。
 
+## 语料 API（`/v1/corpus`）
+
+与 Pallas-Bot `RemoteCorpusRepository` 对接。
+
+| 用途 | 方法 / 路径 |
+| --- | --- |
+| 领取 token | `POST /v1/corpus/enroll` |
+| 读取语料 | `GET /v1/corpus/context?keywords=...` |
+| 贡献语料 | `POST /v1/corpus/contribute` |
+
+### `POST /v1/corpus/enroll`
+
+公开实例默认无需 Bearer；`CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN=true` 时须心跳 token。
+
+**请求：** `{ "deployment_id": "<uuid-v4>" }`
+
+**200：** `corpus_token`（`pc_` 前缀）、`api_base`、`policy`、`expires_at`。同一 deployment 再次 enroll 会轮换 token。
+
+### `GET /v1/corpus/context`
+
+**Headers：** `Authorization: Bearer pc_...`  
+**Query：** `keywords`（必填）  
+**200 / 404**
+
+### `POST /v1/corpus/contribute`
+
+须 token 且 `contribute` 权限（默认 enroll 为 `false`）。
+
+`op=upsert_answer`：`keywords`、`answer_keywords`、`message`、`group_id`（社区语料用 `0`）等。  
+`op=insert`：完整 `context` 对象。
+
 ## 环境变量
 
 | 变量 | 默认 | 说明 |
@@ -139,7 +170,12 @@
 | `HEARTBEAT_MIN_INTERVAL_SEC` | `30` | 公开写入：同一 deployment 最短间隔（秒） |
 | `ONLINE_TTL_SEC` | `900` | 在线判定窗口（60–86400） |
 | `MAX_CLOCK_SKEW_SEC` | `300` | 客户端 `ts` 允许偏差 |
+| `CORPUS_ENABLED` | `true` | 是否挂载 `/v1/corpus/*` |
+| `CORPUS_PUBLIC_API_BASE` | 空 | enroll 返回的 `api_base`；空则从请求推导 |
+| `CORPUS_DEFAULT_CONTRIBUTE` | `false` | 新 enroll 默认是否允许 contribute |
+| `CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN` | `false` | enroll 是否要求心跳 Bearer |
+| `CORPUS_TOKEN_TTL_SEC` | `0` | token 有效期；0 表示不过期 |
 
 ## 隐私
 
-中心服务**不**接收 QQ 号列表、群号、消息内容。仅存储聚合字段与 `deployment_id`。
+心跳**不**接收 QQ 号列表、群号。语料 API 仅存匿名 `keywords` 与短句（`group_id=0`），不含 QQ/群号。

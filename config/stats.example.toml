@@ -16,6 +16,12 @@ heartbeat_min_interval_sec = 30.0
 online_ttl_sec = 900
 max_clock_skew_sec = 300
 
+# 社区共享语料（Bot 外接 corpus_remote）；见 docs/API.md § 语料 API
+# corpus_enabled = true
+# corpus_public_api_base = "https://stats.pallasbot.top/v1/corpus"
+# corpus_default_contribute = false
+# corpus_enroll_requires_heartbeat_token = false
+
 # 多实例部署时可选 Redis 分布式限流（与 Pallas-Bot-AI 共用 REDIS_URL 时可填同一地址）
 # [env]
 # REDIS_URL = "redis://127.0.0.1:6379/1"
