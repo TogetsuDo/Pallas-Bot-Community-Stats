@@ -26,3 +26,11 @@ CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN = "false"
 # 多实例 + 公开写入：启用 Redis 分布式限流
 # REDIS_URL = "redis://127.0.0.1:6379/1"
 # STATS_REDIS_RATE_LIMIT_ENABLED = "auto"
+
+# 联邦 bootstrap（Bot 拉取 federate_id + 协调 Redis；须 INSTANCE_SECRET）
+# BOOTSTRAP_ENABLED = "true"
+# INSTANCE_SECRET = "change-me"
+# FEDERATE_ID = "public-pool"
+# FEDERATE_COORD_REDIS_URL = "redis://127.0.0.1:6379/2"
+# FEDERATE_REDIS_PREFIX = "pallas:fed:public-pool"
+# FEDERATE_CLAIM_TTL_SEC = "86400"

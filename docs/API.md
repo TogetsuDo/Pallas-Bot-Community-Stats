@@ -86,6 +86,63 @@
 | 400 | 校验失败（如非法 UUID、`ts` 偏差过大） |
 | 401 | 缺少或错误的 Bearer token |
 
+## `GET /v1/bootstrap`
+
+向 Bot 下发联邦池身份与**协调 Redis**（跨 deployment ingress 去重用）。Bot **直连 Redis**，不经本服务转发群消息。
+
+### 启用
+
+中心须配置 `BOOTSTRAP_ENABLED=true`、`INSTANCE_SECRET`（非空）、`FEDERATE_ID`；协调 Redis 填 `FEDERATE_COORD_REDIS_URL`（可与中心限流 Redis 同实例、不同 DB/前缀）。
+
+### 鉴权
+
+| 配置 | 行为 |
+| --- | --- |
+| `BOOTSTRAP_ENABLED=false` | **503** `bootstrap disabled` |
+| `INSTANCE_SECRET` 非空 | 须 `Authorization: Bearer <secret>` |
+| `INSTANCE_SECRET` 留空且已启用 bootstrap | **503**（须先配置密钥） |
+
+### 请求头
+
+| 头 | 必填 | 说明 |
+| --- | --- | --- |
+| `X-Deployment-Id` | 是 | UUID v4，与心跳 `deployment_id` 一致 |
+
+### 响应 200
+
+```json
+{
+  "schema_version": 1,
+  "deployment_id": "550e8400-e29b-41d4-a716-446655440000",
+  "tenant_id": null,
+  "federate_id": "public-pool",
+  "coord": {
+    "redis_url": "redis://redis.example:6379/2",
+    "redis_prefix": "pallas:fed:public-pool",
+    "claim_ttl_sec": 86400
+  },
+  "expires_at": 1735689600
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `federate_id` | 联邦池 ID；同池 deployment 共享 ingress 去重 |
+| `coord.redis_url` | Bot 协调 Redis 连接串（须各 deployment 可达） |
+| `coord.redis_prefix` | Redis key 前缀，默认可由中心按 `federate_id` 生成 |
+| `coord.claim_ttl_sec` | ingress claim TTL（秒） |
+| `expires_at` | 建议在此时间前重新拉取 bootstrap |
+
+未配置 `FEDERATE_COORD_REDIS_URL` 时 `coord` 可为 `null`（仅下发 `federate_id`）。
+
+### 错误
+
+| 状态码 | 说明 |
+| --- | --- |
+| 400 | `X-Deployment-Id` 非法 |
+| 401 | 缺少或错误的 Bearer |
+| 503 | bootstrap 未启用或未配置密钥 |
+
 ## `GET /v1/stats`
 
 公开只读聚合指标，无需鉴权。

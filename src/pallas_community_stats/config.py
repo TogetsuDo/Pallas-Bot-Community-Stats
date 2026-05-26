@@ -42,6 +42,18 @@ class Settings(BaseSettings):
     corpus_read_rpm: int = Field(default=120, ge=1, le=10_000, validation_alias="CORPUS_READ_RPM")
     corpus_contribute_per_day: int = Field(default=0, ge=0, le=1_000_000, validation_alias="CORPUS_CONTRIBUTE_PER_DAY")
     corpus_token_ttl_sec: int = Field(default=0, ge=0, le=86400 * 366, validation_alias="CORPUS_TOKEN_TTL_SEC")
+    bootstrap_enabled: bool = Field(default=False, validation_alias="BOOTSTRAP_ENABLED")
+    instance_secret: str = Field(default="", validation_alias="INSTANCE_SECRET")
+    bootstrap_ttl_sec: int = Field(default=86400, ge=300, le=86400 * 30, validation_alias="BOOTSTRAP_TTL_SEC")
+    federate_id: str = Field(default="", validation_alias="FEDERATE_ID")
+    federate_coord_redis_url: str = Field(default="", validation_alias="FEDERATE_COORD_REDIS_URL")
+    federate_redis_prefix: str = Field(default="", validation_alias="FEDERATE_REDIS_PREFIX")
+    federate_claim_ttl_sec: int = Field(
+        default=86400,
+        ge=60,
+        le=86400 * 7,
+        validation_alias="FEDERATE_CLAIM_TTL_SEC",
+    )
 
 
 @lru_cache(maxsize=1)

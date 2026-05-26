@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
+from pallas_community_stats.bootstrap_routes import build_bootstrap_router
 from pallas_community_stats.config import Settings, get_settings
 from pallas_community_stats.corpus_routes import build_corpus_router
 from pallas_community_stats.corpus_store import CorpusStore
@@ -27,6 +28,24 @@ from pallas_community_stats.shields import shields_endpoint_payload
 
 def _app_settings(request: Request) -> Settings:
     return request.app.state.settings
+
+
+def _require_bootstrap_auth(
+    settings: Settings = Depends(_app_settings),
+    authorization: str | None = Header(default=None),
+) -> None:
+    if not settings.bootstrap_enabled:
+        return
+    secret = (settings.instance_secret or "").strip()
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="bootstrap enabled but INSTANCE_SECRET not configured",
+        )
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing bearer token")
+    if authorization.removeprefix("Bearer ").strip() != secret:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid bearer token")
 
 
 def _require_heartbeat_auth(
@@ -173,6 +192,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def badge_bots_online(settings: Settings = Depends(_app_settings)) -> JSONResponse:
         snap = store.aggregate_stats(online_ttl_sec=settings.online_ttl_sec)
         return _badge_response("在线牛", str(snap.bots_online_sum))
+
+    app.include_router(
+        build_bootstrap_router(
+            settings=cfg,
+            require_bootstrap_auth=_require_bootstrap_auth,
+        )
+    )
 
     if cfg.corpus_enabled:
         app.include_router(

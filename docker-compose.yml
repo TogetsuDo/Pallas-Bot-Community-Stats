@@ -13,6 +13,8 @@ services:
       - ./data:/app/data
     environment:
       TZ: Asia/Shanghai
+    # 联邦 bootstrap + 协调 Redis：在 config/stats.toml [env] 配置 BOOTSTRAP_ENABLED、FEDERATE_COORD_REDIS_URL 等；
+    # 启用 compose profile redis 时示例：FEDERATE_COORD_REDIS_URL=redis://redis:6379/2
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8099/health', timeout=3)\""]
       interval: 30s
