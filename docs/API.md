@@ -279,7 +279,7 @@
 | `federation.members_total` | 曾成功拉取 bootstrap 的 deployment 数 |
 | `federation.members_online` | 在 `online_ttl_sec` 内心跳且已入池的 deployment 数 |
 | `federation.members_recent_24h` | 近 24 小时拉取过 bootstrap 的 deployment 数 |
-| `federation.coord_active_deployments` | 协调 Redis 上仍有 ingress claim 的 deployment 数；中心未配 Redis 或扫描失败时为 `null` |
+| `federation.coord_active_deployments` | 协调 Redis 上仍有 ingress claim 的 deployment 数；中心未配 Redis 或扫描失败时为 `null`；中心侧按 Redis URL + 前缀 **缓存 60 秒** |
 | `deployments.catalog_bots_online_sum` | 在线部署上报的 `catalog_bots` 之和 |
 | `deployments.active_recent_24h` | 近 24 小时有心跳的 deployment 数 |
 | `deployments.online_versions` | 在线部署版本 Top 5（不含 deployment_id） |

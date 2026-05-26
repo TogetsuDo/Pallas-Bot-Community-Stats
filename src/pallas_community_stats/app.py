@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -175,13 +176,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         dep_raw = store.aggregate_deployment_monitor(online_ttl_sec=settings.online_ttl_sec)
         versions = [VersionCount(**row) for row in dep_raw.pop("online_versions", [])]
         deployments = DeploymentMonitorStats(**dep_raw, online_versions=versions)
+        federation = await asyncio.to_thread(build_federation_monitor, settings, store)
         return MonitorOverviewResponse(
             online_ttl_sec=settings.online_ttl_sec,
             as_of=monitor_as_of(),
             corpus_enabled=cfg.corpus_enabled,
             deployments=deployments,
             corpus=build_corpus_monitor(settings),
-            federation=build_federation_monitor(settings, store),
+            federation=federation,
         )
 
     def _badge_response(label: str, message: str) -> JSONResponse:
