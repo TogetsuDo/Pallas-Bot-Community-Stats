@@ -276,10 +276,10 @@
 
 | 字段 | 说明 |
 | --- | --- |
-| `federation.members_total` | 曾成功拉取 bootstrap 的 deployment 数 |
-| `federation.members_online` | 在 `online_ttl_sec` 内心跳且已入池的 deployment 数 |
-| `federation.members_recent_24h` | 近 24 小时拉取过 bootstrap 的 deployment 数 |
-| `federation.coord_active_deployments` | 协调 Redis 上仍有 ingress claim 的 deployment 数；中心未配 Redis 或扫描失败时为 `null`；中心侧按 Redis URL + 前缀 **缓存 60 秒** |
+| `federation.members_total` | 累计入池：曾向中心 **成功领取** 联邦配置（`GET /v1/bootstrap`）的自托管套数 |
+| `federation.members_online` | 在线入池：已入池且在 `online_ttl_sec` 内向中心 **上报过心跳**；与 Redis claim 无直接关系 |
+| `federation.members_recent_24h` | 近 24 小时领取过 bootstrap 的 deployment 数 |
+| `federation.coord_active_deployments` | 去重活跃：协调 Redis 上仍有 ingress **claim** 的 deployment 数（须实际处理群消息）；中心未配 Redis 或扫描失败时为 `null`；中心侧按 Redis URL + 前缀 **缓存 60 秒** |
 | `deployments.catalog_bots_online_sum` | 在线部署上报的 `catalog_bots` 之和 |
 | `deployments.active_recent_24h` | 近 24 小时有心跳的 deployment 数 |
 | `deployments.online_versions` | 在线部署版本 Top 5（不含 deployment_id） |
