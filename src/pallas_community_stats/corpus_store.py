@@ -76,6 +76,17 @@ class CorpusStore:
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_corpus_answers_hash ON corpus_answers(keywords_hash)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS corpus_deployment_usage (
+                    deployment_id TEXT PRIMARY KEY,
+                    read_lookups INTEGER NOT NULL DEFAULT 0,
+                    read_hits INTEGER NOT NULL DEFAULT 0,
+                    contribute_ok INTEGER NOT NULL DEFAULT 0,
+                    updated_unix INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
             conn.commit()
 
     def enroll(
@@ -297,6 +308,84 @@ class CorpusStore:
             """,
             (count, answer_time, dumps_messages(messages), khash, group_id, answer_keywords),
         )
+
+    def bump_usage(
+        self,
+        deployment_id: str,
+        *,
+        read_lookup: bool = False,
+        read_hit: bool = False,
+        contribute: bool = False,
+    ) -> None:
+        if not (read_lookup or read_hit or contribute):
+            return
+        dep = (deployment_id or "").strip().lower()
+        if not dep:
+            return
+        now = int(time.time())
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO corpus_deployment_usage (
+                    deployment_id, read_lookups, read_hits, contribute_ok, updated_unix
+                ) VALUES (?, 0, 0, 0, ?)
+                ON CONFLICT(deployment_id) DO NOTHING
+                """,
+                (dep, now),
+            )
+            if read_lookup:
+                conn.execute(
+                    """
+                    UPDATE corpus_deployment_usage
+                    SET read_lookups = read_lookups + 1, updated_unix = ?
+                    WHERE deployment_id = ?
+                    """,
+                    (now, dep),
+                )
+            if read_hit:
+                conn.execute(
+                    """
+                    UPDATE corpus_deployment_usage
+                    SET read_hits = read_hits + 1, updated_unix = ?
+                    WHERE deployment_id = ?
+                    """,
+                    (now, dep),
+                )
+            if contribute:
+                conn.execute(
+                    """
+                    UPDATE corpus_deployment_usage
+                    SET contribute_ok = contribute_ok + 1, updated_unix = ?
+                    WHERE deployment_id = ?
+                    """,
+                    (now, dep),
+                )
+            conn.commit()
+
+    def get_usage(self, deployment_id: str) -> dict[str, int | None]:
+        dep = (deployment_id or "").strip().lower()
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT read_lookups, read_hits, contribute_ok, updated_unix
+                FROM corpus_deployment_usage WHERE deployment_id = ?
+                """,
+                (dep,),
+            ).fetchone()
+        if row is None:
+            return {
+                "read_lookups": 0,
+                "read_hits": 0,
+                "contribute_ok": 0,
+                "updated_at": None,
+            }
+        updated = int(row["updated_unix"]) if row["updated_unix"] else None
+        return {
+            "read_lookups": int(row["read_lookups"]),
+            "read_hits": int(row["read_hits"]),
+            "contribute_ok": int(row["contribute_ok"]),
+            "updated_at": updated if updated else None,
+        }
 
     def aggregate_public_stats(self) -> dict[str, int]:
         return {

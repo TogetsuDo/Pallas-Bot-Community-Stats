@@ -60,7 +60,7 @@ CORPUS_DEFAULT_CONTRIBUTE = "true"
 # BOOTSTRAP_ENABLED = "true"
 # INSTANCE_SECRET = "change-me"
 # FEDERATE_ID = "public-pool"
-# FEDERATE_COORD_REDIS_URL = "redis://:<password>@coord.pallas.top:6380/2"
+# FEDERATE_COORD_REDIS_URL = "redis://:<password>@coord.pallasbot.top:6380/2"
 # FEDERATION_ONBOARDING_PUBLISH_SECRET = "true"
 ```
 

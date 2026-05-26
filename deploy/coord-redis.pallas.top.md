@@ -1,18 +1,22 @@
-# 联邦协调 Redis 公网（coord.pallas.top）
+# 联邦协调 Redis 公网（coord 子域）
 
 Bot 跨 deployment ingress 去重使用 **TCP Redis**（非 HTTP），须单独解析子域并放行端口。
 
-## DNS（在 `pallas.top` 解析商控制台）
+## DNS
 
-| 类型 | 主机记录 | 记录值 | 说明 |
+生产与 `stats.pallasbot.top` 同属 **`pallasbot.top`** 时，在 **pallasbot.top** 解析控制台添加：
+
+| 类型 | 主机记录 | 记录值 | 完整域名 |
 | --- | --- | --- | --- |
-| **A** | `coord` | 中心机公网 IP（与 `pallas.top` 相同） | 完整域名为 **`coord.pallas.top`** |
+| **A** | `coord` | 中心机公网 IP（与 `stats` 相同，如 `47.99.97.47`） | **`coord.pallasbot.top`** |
+
+> 勿与 **`coord.pallas.top`**（`pallas.top` 根域）混淆：二者是不同域名。Bot bootstrap 里的 `coord.redis_url` 主机名须与你在 DNS 里添加的记录一致。
 
 生效后自检：
 
 ```bash
-dig +short coord.pallas.top A
-redis-cli -h coord.pallas.top -p 6380 -a '<REDIS_COORD_PASSWORD>' --no-auth-warning ping
+dig +short coord.pallasbot.top A
+redis-cli -h coord.pallasbot.top -p 6380 -a '<REDIS_COORD_PASSWORD>' --no-auth-warning ping
 ```
 
 ## 端口与安全组
@@ -27,10 +31,10 @@ redis-cli -h coord.pallas.top -p 6380 -a '<REDIS_COORD_PASSWORD>' --no-auth-warn
 ## 中心配置（`config/stats.toml` `[env]`）
 
 ```toml
-FEDERATE_COORD_REDIS_URL = "redis://:<url-encoded-password>@coord.pallas.top:6380/2"
+FEDERATE_COORD_REDIS_URL = "redis://:<url-encoded-password>@coord.pallasbot.top:6380/2"
 ```
 
-密码写在 `config/redis.coord.env`（`REDIS_COORD_PASSWORD`，勿提交 git）。`GET /v1/bootstrap` 的 `coord.redis_url` 与此一致。
+密码写在 `config/redis.coord.env`（`REDIS_COORD_PASSWORD`，勿提交 git）。`GET /v1/bootstrap` 的 `coord.redis_url` 与此一致；改 URL 后 Bot 需重新拉 bootstrap（重启 hub 或控制台保存联邦控制面触发刷新）。
 
 ## 与分片 Redis 的关系
 

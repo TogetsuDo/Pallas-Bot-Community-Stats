@@ -11,6 +11,7 @@ from pallas_community_stats.corpus_models import (
     CorpusEnrollBody,
     CorpusEnrollResponse,
     CorpusPolicy,
+    CorpusUsageResponse,
 )
 from pallas_community_stats.corpus_store import CorpusStore, CorpusTokenRecord
 
@@ -69,6 +70,19 @@ def build_corpus_router(
             expires_at=expires,
         )
 
+    @router.get("/usage", response_model=CorpusUsageResponse)
+    async def corpus_usage(token: CorpusTokenRecord = Depends(require_corpus_token)) -> CorpusUsageResponse:
+        if not settings.corpus_enabled:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="corpus disabled")
+        usage = store.get_usage(token.deployment_id)
+        return CorpusUsageResponse(
+            deployment_id=token.deployment_id,
+            read_lookups=int(usage["read_lookups"]),
+            read_hits=int(usage["read_hits"]),
+            contribute_ok=int(usage["contribute_ok"]),
+            updated_at=usage["updated_at"],
+        )
+
     @router.get("/context")
     async def corpus_get_context(
         keywords: str,
@@ -81,9 +95,11 @@ def build_corpus_router(
         kw = (keywords or "").strip()
         if not kw:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="keywords required")
+        store.bump_usage(token.deployment_id, read_lookup=True)
         ctx = store.get_context(kw)
         if ctx is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="context not found")
+        store.bump_usage(token.deployment_id, read_hit=True)
         return ctx
 
     @router.post("/contribute", response_model=CorpusContributeResponse)
@@ -109,6 +125,7 @@ def build_corpus_router(
                 message=str(body.message or ""),
                 append_on_existing=bool(body.append_on_existing),
             )
+            store.bump_usage(token.deployment_id, contribute=True)
             return CorpusContributeResponse()
         if body.op == "insert":
             ctx = body.context
@@ -122,6 +139,7 @@ def build_corpus_router(
                 time=int(ctx.get("time") or 0),
                 answers=[a for a in answers if isinstance(a, dict)],
             )
+            store.bump_usage(token.deployment_id, contribute=True)
             return CorpusContributeResponse()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported op")
 

@@ -80,3 +80,36 @@ def test_corpus_contribute_forbidden_when_disabled(tmp_path, monkeypatch) -> Non
 
 def test_corpus_requires_bearer(corpus_client: TestClient) -> None:
     assert corpus_client.get("/v1/corpus/context", params={"keywords": "x"}).status_code == 401
+
+
+def test_corpus_usage_counts(corpus_client: TestClient) -> None:
+    dep = str(uuid.uuid4())
+    token = corpus_client.post("/v1/corpus/enroll", json={"deployment_id": dep}).json()["corpus_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    usage0 = corpus_client.get("/v1/corpus/usage", headers=headers)
+    assert usage0.status_code == 200
+    assert usage0.json()["read_lookups"] == 0
+
+    assert corpus_client.get("/v1/corpus/context", params={"keywords": "miss"}, headers=headers).status_code == 404
+    assert corpus_client.get("/v1/corpus/usage", headers=headers).json()["read_lookups"] == 1
+    assert corpus_client.get("/v1/corpus/usage", headers=headers).json()["read_hits"] == 0
+
+    corpus_client.post(
+        "/v1/corpus/contribute",
+        json={
+            "op": "upsert_answer",
+            "keywords": "usage-kw",
+            "group_id": 0,
+            "answer_keywords": "usage-ans",
+            "message": "hi",
+        },
+        headers=headers,
+    )
+    assert corpus_client.get("/v1/corpus/context", params={"keywords": "usage-kw"}, headers=headers).status_code == 200
+
+    usage1 = corpus_client.get("/v1/corpus/usage", headers=headers).json()
+    assert usage1["read_lookups"] == 2
+    assert usage1["read_hits"] == 1
+    assert usage1["contribute_ok"] == 1
+    assert usage1["deployment_id"] == dep.lower()

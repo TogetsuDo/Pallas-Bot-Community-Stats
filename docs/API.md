@@ -294,6 +294,7 @@
 | 用途 | 方法 / 路径 |
 | --- | --- |
 | 领取 token | `POST /v1/corpus/enroll` |
+| 本部署用量 | `GET /v1/corpus/usage` |
 | 读取语料 | `GET /v1/corpus/context?keywords=...` |
 | 贡献语料 | `POST /v1/corpus/contribute` |
 
@@ -305,11 +306,23 @@
 
 **200：** `corpus_token`（`pc_` 前缀）、`api_base`、`policy`、`expires_at`。同一 deployment 再次 enroll 会轮换 token。
 
+### `GET /v1/corpus/usage`
+
+**Headers：** `Authorization: Bearer pc_...`  
+**200：** 按 `deployment_id` 累计（enroll 轮换 token 不重置计数）
+
+| 字段 | 说明 |
+| --- | --- |
+| `read_lookups` | 向共享池发起的读取次数（含未命中 404） |
+| `read_hits` | 共享池返回语料的次数（HTTP 200） |
+| `contribute_ok` | 成功写入共享池的次数 |
+| `updated_at` | 最近一次计数变更的 Unix 秒 |
+
 ### `GET /v1/corpus/context`
 
 **Headers：** `Authorization: Bearer pc_...`  
 **Query：** `keywords`（必填）  
-**200 / 404**
+**200 / 404**（每次请求会计入 `read_lookups`；200 时另计 `read_hits`）
 
 ### `POST /v1/corpus/contribute`
 

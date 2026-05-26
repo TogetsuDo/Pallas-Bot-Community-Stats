@@ -79,3 +79,11 @@ class CorpusContributeBody(BaseModel):
 class CorpusContributeResponse(BaseModel):
     ok: bool = True
     accepted: bool = True
+
+
+class CorpusUsageResponse(BaseModel):
+    deployment_id: str
+    read_lookups: int = 0
+    read_hits: int = 0
+    contribute_ok: int = 0
+    updated_at: int | None = None
