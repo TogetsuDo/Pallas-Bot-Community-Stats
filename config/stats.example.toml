@@ -31,6 +31,8 @@ CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN = "false"
 # BOOTSTRAP_ENABLED = "true"
 # INSTANCE_SECRET = "change-me"
 # FEDERATE_ID = "public-pool"
-# FEDERATE_COORD_REDIS_URL = "redis://127.0.0.1:6379/2"
+# 公网示例（须 DNS A 记录 coord.pallas.top → 中心机 IP，安全组放行 6380/tcp）
+# FEDERATE_COORD_REDIS_URL = "redis://:<url-encoded-password>@coord.pallas.top:6380/2"
+# 密码见 config/redis.coord.env（REDIS_COORD_PASSWORD），勿提交 git
 # FEDERATE_REDIS_PREFIX = "pallas:fed:public-pool"
 # FEDERATE_CLAIM_TTL_SEC = "86400"

@@ -1,0 +1,16 @@
+# 复制为生产机 docker-compose.coord-redis.yml（勿提交 redis.coord.env / 含密 compose）
+# 与 docker-compose.yml、docker-compose.override.yml 一并：docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.coord-redis.yml --profile redis up -d
+
+services:
+  redis:
+    entrypoint: ["redis-server"]
+    command:
+      - "--bind"
+      - "0.0.0.0"
+      - "--port"
+      - "6379"
+      - "--requirepass"
+      - "REPLACE_WITH_STRONG_PASSWORD"
+    ports:
+      - "127.0.0.1:6382:6379"
+      - "0.0.0.0:6380:6379"
