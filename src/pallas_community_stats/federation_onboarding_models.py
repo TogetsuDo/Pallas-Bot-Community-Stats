@@ -25,6 +25,10 @@ class FederationOnboardingResponse(BaseModel):
     bootstrap_enabled: bool = False
     federate_id: str | None = None
     coord: FederationCoordPublic | None = None
+    coord_redis_hint: str = ""
+    stats_primary_url: str = ""
+    stats_fallback_url: str = ""
+    stats_failover_note: str = ""
     instance_secret: str | None = None
     instance_secret_label: str = "入池密钥"
     instance_secret_hint: str = ""

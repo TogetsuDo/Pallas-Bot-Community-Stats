@@ -97,7 +97,7 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d stats.pallasbot.top
 ```
 
-备案过渡期若只能挂在已有域名下，用片段 [deploy/nginx-pallas-community-stats-locations.conf](deploy/nginx-pallas-community-stats-locations.conf)（含 `/v1/corpus/`）。
+备案过渡期若只能挂在已有域名下，用片段 [deploy/nginx-pallas-community-stats-locations.conf](deploy/nginx-pallas-community-stats-locations.conf)（白名单路径；**新增中心 API 时须同步补 location**，主站 `stats.pallasbot.top` 为 `location /` 全量反代无需逐条加）。
 
 ### 4. 多实例 + Redis 限流（可选）
 
