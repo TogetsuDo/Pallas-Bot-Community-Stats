@@ -8,6 +8,11 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from pallas_community_stats.bootstrap_routes import build_bootstrap_router
+from pallas_community_stats.federation_onboarding import (
+    build_federation_onboarding,
+    federation_onboarding_enabled,
+)
+from pallas_community_stats.federation_onboarding_models import FederationOnboardingResponse
 from pallas_community_stats.config import Settings, get_settings
 from pallas_community_stats.corpus_routes import build_corpus_router
 from pallas_community_stats.corpus_store import CorpusStore
@@ -192,6 +197,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def badge_bots_online(settings: Settings = Depends(_app_settings)) -> JSONResponse:
         snap = store.aggregate_stats(online_ttl_sec=settings.online_ttl_sec)
         return _badge_response("在线牛", str(snap.bots_online_sum))
+
+    @app.get("/v1/federation/onboarding", response_model=FederationOnboardingResponse)
+    async def federation_onboarding(
+        settings: Settings = Depends(_app_settings),
+    ) -> FederationOnboardingResponse:
+        if not federation_onboarding_enabled(settings):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="federation onboarding disabled",
+            )
+        return build_federation_onboarding(settings)
 
     app.include_router(
         build_bootstrap_router(

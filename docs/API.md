@@ -143,6 +143,29 @@
 | 401 | 缺少或错误的 Bearer |
 | 503 | bootstrap 未启用或未配置密钥 |
 
+## `GET /v1/federation/onboarding`
+
+供 Bot 控制台「统计与语料」页展示的 **Phase 2 入池说明**（公开只读，无需鉴权）。
+
+### 启用
+
+默认在 `BOOTSTRAP_ENABLED=true` 且 `INSTANCE_SECRET` 非空时可用；可用 `FEDERATION_ONBOARDING_ENABLED=false` 关闭（**503**）。
+
+| 环境变量 | 说明 |
+| --- | --- |
+| `FEDERATION_ONBOARDING_ENABLED` | 显式开/关；留空则随 bootstrap 配置推断 |
+| `FEDERATION_ONBOARDING_PUBLISH_SECRET` | 默认 `true`；为 `false` 时不返回 `instance_secret`（仅步骤与池信息） |
+
+### 响应 200
+
+含 `title`、`summary`、`federate_id`、`coord`（协调 Redis **不含密码** 的展示 URL）、`steps`（操作步骤）、`instance_secret`（入池密钥，与 bootstrap Bearer 相同）、`ingress_note` 等。
+
+### 错误
+
+| 状态码 | 说明 |
+| --- | --- |
+| 503 | 入池说明未启用 |
+
 ## `GET /v1/stats`
 
 公开只读聚合指标，无需鉴权。

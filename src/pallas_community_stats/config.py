@@ -54,6 +54,14 @@ class Settings(BaseSettings):
         le=86400 * 7,
         validation_alias="FEDERATE_CLAIM_TTL_SEC",
     )
+    federation_onboarding_enabled: bool | None = Field(
+        default=None,
+        validation_alias="FEDERATION_ONBOARDING_ENABLED",
+    )
+    federation_onboarding_publish_secret: bool = Field(
+        default=True,
+        validation_alias="FEDERATION_ONBOARDING_PUBLISH_SECRET",
+    )
 
 
 @lru_cache(maxsize=1)

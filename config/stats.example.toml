@@ -36,3 +36,7 @@ CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN = "false"
 # 密码见 config/redis.coord.env（REDIS_COORD_PASSWORD），勿提交 git
 # FEDERATE_REDIS_PREFIX = "pallas:fed:public-pool"
 # FEDERATE_CLAIM_TTL_SEC = "86400"
+
+# 控制台「统计与语料」页展示的 Phase 2 入池说明（公开 GET /v1/federation/onboarding）
+# FEDERATION_ONBOARDING_ENABLED = "true"
+# FEDERATION_ONBOARDING_PUBLISH_SECRET = "true"

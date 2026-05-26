@@ -12,12 +12,17 @@ Pallas-Bot **opt-in** 社区统计与**共享语料**中心：接收各部署自
 | 用途 | URL |
 | --- | --- |
 | 公开统计 | `GET /v1/stats` |
+| 监控聚合 | `GET /v1/monitor/overview` |
 | 心跳 | `POST /v1/heartbeat` |
 | 健康检查 | `GET /health` |
 | 语料 enroll | `POST /v1/corpus/enroll` |
 | 语料读取 | `GET /v1/corpus/context` |
+| 联邦 bootstrap | `GET /v1/bootstrap`（Bot 鉴权拉取池 ID + 协调 Redis） |
+| Phase 2 入池说明 | `GET /v1/federation/onboarding`（控制台展示步骤与入池密钥） |
 
-各 Bot 默认 opt-in 上报与 auto enroll，**无需向用户分发 token**。公共实例约定：`heartbeat_token` 留空 + IP/部署限流；详见下文「共用中心运维」。
+各 Bot 默认 opt-in 上报与 auto enroll，**语料与心跳无需向用户分发 token**。公共实例约定：`heartbeat_token` 留空 + IP/部署限流；详见下文「共用中心运维」。
+
+**联邦 Phase 2**（跨 deployment ingress 去重）：Bot **直连**协调 Redis，中心仅通过 bootstrap 下发 `federate_id` 与 `coord.redis_url`，不经 HTTP 转发群消息。入池密钥为 `INSTANCE_SECRET`（与 bootstrap Bearer 相同），可由控制台「统计与语料」页拉取 `/v1/federation/onboarding` 展示；协调 Redis 公网部署见 [deploy/coord-redis.pallas.top.md](deploy/coord-redis.pallas.top.md)。
 
 ---
 
@@ -50,6 +55,13 @@ heartbeat_token = ""   # 公共实例留空；私有实例再设 Bearer
 CORPUS_ENABLED = "true"
 CORPUS_PUBLIC_API_BASE = "https://stats.pallasbot.top/v1/corpus"
 CORPUS_DEFAULT_CONTRIBUTE = "true"
+
+# 联邦 bootstrap（Phase 2 ingress 去重；Bot 控制台可展示入池说明）
+# BOOTSTRAP_ENABLED = "true"
+# INSTANCE_SECRET = "change-me"
+# FEDERATE_ID = "public-pool"
+# FEDERATE_COORD_REDIS_URL = "redis://:<password>@coord.pallas.top:6380/2"
+# FEDERATION_ONBOARDING_PUBLISH_SECRET = "true"
 ```
 
 ### 2. 启动
@@ -103,6 +115,23 @@ docker compose --profile redis up -d
 
 （Compose 内 `redis` 服务与 stats 同网；若用宿主机 Redis，URL 改为 `redis://127.0.0.1:6379/1` 并自行保证 stats 容器可达。）
 
+### 5. 联邦协调 Redis（Phase 2，可选）
+
+跨 deployment **ingress 去重**需要各 Bot 可达的协调 Redis（与语料/限流 Redis 可同实例、不同 DB）。公网子域、端口与安全组见 [deploy/coord-redis.pallas.top.md](deploy/coord-redis.pallas.top.md)。
+
+中心 `stats.toml` 启用 bootstrap 后，Bot 用 `INSTANCE_SECRET` 调 `GET /v1/bootstrap` 自动落盘；运维也可在 Bot 控制台「统计与语料」查看 `GET /v1/federation/onboarding`（公开说明 + 可选下发入池密钥）。
+
+| 环境变量 | 说明 |
+| --- | --- |
+| `BOOTSTRAP_ENABLED` | 开启 bootstrap |
+| `INSTANCE_SECRET` | 入池密钥（bootstrap Bearer；勿与 `heartbeat_token` 混用） |
+| `FEDERATE_ID` | 联邦池 ID |
+| `FEDERATE_COORD_REDIS_URL` | Bot 直连的协调 Redis（含密码，由 bootstrap 下发） |
+| `FEDERATION_ONBOARDING_ENABLED` | 入池说明 API；留空则 bootstrap 就绪时自动开放 |
+| `FEDERATION_ONBOARDING_PUBLISH_SECRET` | 默认 `true`；`false` 时 onboarding 不返回明文密钥 |
+
+示例 Compose 见 [deploy/docker-compose.coord-redis.example.yml](deploy/docker-compose.coord-redis.example.yml)。
+
 ---
 
 ## 共用中心运维要点
@@ -114,6 +143,8 @@ docker compose --profile redis up -d
 | 语料贡献 | 默认 **开**（`corpus_default_contribute = true`）；Bot auto enroll 后 mirror 学习结果 |
 | 备份 | 定期备份 `data/stats.db` |
 | 暴露面 | 反代只开 443；应用 **不要** `0.0.0.0:8099` 裸奔公网 |
+| 联邦入池 | `INSTANCE_SECRET` 仅给信任部署；`FEDERATION_ONBOARDING_PUBLISH_SECRET=false` 可关闭控制台明文展示 |
+| 协调 Redis | 公网暴露时强密码 + 安全组；Bot 直连，中心不代理消息 |
 
 私有中心：自行设置 `heartbeat_token`，Bot 端配置对应 token 即可。
 
