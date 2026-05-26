@@ -136,7 +136,7 @@ def build_corpus_router(
                 answers = []
             store.insert_context(
                 keywords=str(ctx["keywords"]),
-                time=int(ctx.get("time") or 0),
+                context_time=int(ctx.get("time") or 0),
                 answers=[a for a in answers if isinstance(a, dict)],
             )
             store.bump_usage(token.deployment_id, contribute=True)

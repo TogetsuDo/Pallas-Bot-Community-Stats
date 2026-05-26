@@ -175,10 +175,10 @@ class CorpusStore:
             answers=answers,
         )
 
-    def insert_context(self, *, keywords: str, time: int, answers: list[dict[str, Any]]) -> None:
+    def insert_context(self, *, keywords: str, context_time: int, answers: list[dict[str, Any]]) -> None:
         khash = keywords_hash(keywords)
         now = int(time.time())
-        ctx_time = int(time) if time > 0 else now
+        ctx_time = int(context_time) if context_time > 0 else now
         trigger = max(1, len(answers))
         with self._lock, self._connect() as conn:
             conn.execute(
