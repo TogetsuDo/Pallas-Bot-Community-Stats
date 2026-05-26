@@ -23,7 +23,7 @@ def _normalize_deployment_id(raw: str | None) -> str:
     return dep
 
 
-def _federate_redis_prefix(federate_id: str, explicit: str) -> str:
+def federate_redis_prefix_for_id(federate_id: str, explicit: str = "") -> str:
     prefix = (explicit or "").strip().rstrip(":")
     if prefix:
         return prefix
@@ -31,9 +31,15 @@ def _federate_redis_prefix(federate_id: str, explicit: str) -> str:
     return f"pallas:fed:{safe}"
 
 
+def federate_redis_prefix_for_settings(settings: Settings) -> str:
+    fid = (settings.federate_id or "").strip()
+    return federate_redis_prefix_for_id(fid, settings.federate_redis_prefix)
+
+
 def build_bootstrap_router(
     *,
     settings: Settings,
+    store,
     require_bootstrap_auth,
 ) -> APIRouter:
     router = APIRouter(tags=["bootstrap"])
@@ -58,10 +64,16 @@ def build_bootstrap_router(
         if federate_id and redis_url:
             coord = BootstrapCoordResponse(
                 redis_url=redis_url,
-                redis_prefix=_federate_redis_prefix(federate_id, settings.federate_redis_prefix),
+                redis_prefix=federate_redis_prefix_for_settings(settings),
                 claim_ttl_sec=settings.federate_claim_ttl_sec,
             )
         expires_at = int(time.time()) + max(300, settings.bootstrap_ttl_sec)
+        if federate_id:
+            store.record_federation_bootstrap(
+                deployment_id=deployment_id,
+                federate_id=federate_id,
+                seen_unix=int(time.time()),
+            )
         return BootstrapResponse(
             schema_version=1,
             deployment_id=deployment_id,

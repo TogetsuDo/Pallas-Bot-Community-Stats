@@ -8,15 +8,16 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from pallas_community_stats.bootstrap_routes import build_bootstrap_router
+from pallas_community_stats.config import Settings, get_settings
+from pallas_community_stats.corpus_routes import build_corpus_router
+from pallas_community_stats.corpus_store import CorpusStore
+from pallas_community_stats.db import StatsStore
+from pallas_community_stats.federation_monitor import build_federation_monitor
 from pallas_community_stats.federation_onboarding import (
     build_federation_onboarding,
     federation_onboarding_enabled,
 )
 from pallas_community_stats.federation_onboarding_models import FederationOnboardingResponse
-from pallas_community_stats.config import Settings, get_settings
-from pallas_community_stats.corpus_routes import build_corpus_router
-from pallas_community_stats.corpus_store import CorpusStore
-from pallas_community_stats.db import StatsStore
 from pallas_community_stats.models import (
     CorpusMonitorStats,
     CorpusStatsResponse,
@@ -180,6 +181,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             corpus_enabled=cfg.corpus_enabled,
             deployments=deployments,
             corpus=build_corpus_monitor(settings),
+            federation=build_federation_monitor(settings, store),
         )
 
     def _badge_response(label: str, message: str) -> JSONResponse:
@@ -207,11 +209,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="federation onboarding disabled",
             )
-        return build_federation_onboarding(settings)
+        return build_federation_onboarding(settings, store)
 
     app.include_router(
         build_bootstrap_router(
             settings=cfg,
+            store=store,
             require_bootstrap_auth=_require_bootstrap_auth,
         )
     )

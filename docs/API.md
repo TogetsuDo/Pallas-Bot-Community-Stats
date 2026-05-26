@@ -158,7 +158,7 @@
 
 ### 响应 200
 
-含 `title`、`summary`、`federate_id`、`coord`（协调 Redis **不含密码** 的展示 URL）、`steps`（操作步骤）、`instance_secret`（入池密钥，与 bootstrap Bearer 相同）、`ingress_note` 等。
+含 `title`、`summary`、`federate_id`、`coord`（协调 Redis **不含密码** 的展示 URL）、`pool_stats`（入池与 Redis 活跃部署计数，同 monitor `federation`）、`steps`（操作步骤）、`instance_secret`（入池密钥，与 bootstrap Bearer 相同）、`ingress_note` 等。
 
 ### 错误
 
@@ -200,6 +200,7 @@
 | `online_ttl_sec` | 服务端当前在线判定窗口（秒） |
 | `as_of` | 统计快照 UTC 时间（ISO-8601，`Z` 结尾） |
 | `corpus` | 语料池公开计数（`CORPUS_ENABLED=false` 时为 `null`） |
+| `federation` | 联邦入池计数（`BOOTSTRAP_ENABLED=false` 且无池配置时为 `null`） |
 | `corpus.contexts_total` | 社区池 context 数 |
 | `corpus.answers_total` | 社区池 answer 数 |
 | `corpus.enrollments_total` | 已 enroll 的 deployment 数 |
@@ -260,12 +261,25 @@
       { "version": "3.0.2", "count": 9 }
     ]
   },
-  "corpus": { "...": "同 /v1/stats/corpus 的 corpus 对象；corpus 关闭时为 null" }
+  "corpus": { "...": "同 /v1/stats/corpus 的 corpus 对象；corpus 关闭时为 null" },
+  "federation": {
+    "bootstrap_enabled": true,
+    "federate_id": "pallas-public",
+    "coord_redis_configured": true,
+    "members_total": 12,
+    "members_online": 5,
+    "members_recent_24h": 2,
+    "coord_active_deployments": 3
+  }
 }
 ```
 
 | 字段 | 说明 |
 | --- | --- |
+| `federation.members_total` | 曾成功拉取 bootstrap 的 deployment 数 |
+| `federation.members_online` | 在 `online_ttl_sec` 内心跳且已入池的 deployment 数 |
+| `federation.members_recent_24h` | 近 24 小时拉取过 bootstrap 的 deployment 数 |
+| `federation.coord_active_deployments` | 协调 Redis 上仍有 ingress claim 的 deployment 数；中心未配 Redis 或扫描失败时为 `null` |
 | `deployments.catalog_bots_online_sum` | 在线部署上报的 `catalog_bots` 之和 |
 | `deployments.active_recent_24h` | 近 24 小时有心跳的 deployment 数 |
 | `deployments.online_versions` | 在线部署版本 Top 5（不含 deployment_id） |

@@ -59,6 +59,19 @@ class DeploymentMonitorStats(BaseModel):
     online_versions: list[VersionCount] = Field(default_factory=list)
 
 
+class FederationPoolStats(BaseModel):
+    members_total: int = 0
+    members_online: int = 0
+    members_recent_24h: int = 0
+    coord_active_deployments: int | None = None
+
+
+class FederationMonitorStats(FederationPoolStats):
+    bootstrap_enabled: bool = False
+    federate_id: str | None = None
+    coord_redis_configured: bool = False
+
+
 class CorpusMonitorStats(BaseModel):
     contexts_total: int
     answers_total: int
@@ -82,3 +95,4 @@ class MonitorOverviewResponse(BaseModel):
     corpus_enabled: bool
     deployments: DeploymentMonitorStats
     corpus: CorpusMonitorStats | None = None
+    federation: FederationMonitorStats | None = None

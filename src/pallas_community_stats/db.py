@@ -57,6 +57,20 @@ class StatsStore:
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_deployments_last_seen ON deployments(last_seen_unix)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS federation_bootstrap (
+                    deployment_id TEXT PRIMARY KEY,
+                    federate_id TEXT NOT NULL,
+                    first_bootstrap_unix INTEGER NOT NULL,
+                    last_bootstrap_unix INTEGER NOT NULL,
+                    bootstrap_count INTEGER NOT NULL DEFAULT 1
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_federation_bootstrap_last ON federation_bootstrap(last_bootstrap_unix)"
+            )
             conn.commit()
 
     def upsert_heartbeat(
@@ -98,6 +112,67 @@ class StatsStore:
                 ),
             )
             conn.commit()
+
+    def record_federation_bootstrap(
+        self,
+        *,
+        deployment_id: str,
+        federate_id: str,
+        seen_unix: int,
+    ) -> None:
+        dep = (deployment_id or "").strip().lower()
+        fid = (federate_id or "").strip()
+        if not dep or not fid:
+            return
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT bootstrap_count FROM federation_bootstrap WHERE deployment_id = ?",
+                (dep,),
+            ).fetchone()
+            if row is None:
+                conn.execute(
+                    """
+                    INSERT INTO federation_bootstrap (
+                        deployment_id, federate_id, first_bootstrap_unix,
+                        last_bootstrap_unix, bootstrap_count
+                    ) VALUES (?, ?, ?, ?, 1)
+                    """,
+                    (dep, fid, seen_unix, seen_unix),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE federation_bootstrap
+                    SET federate_id = ?, last_bootstrap_unix = ?, bootstrap_count = bootstrap_count + 1
+                    WHERE deployment_id = ?
+                    """,
+                    (fid, seen_unix, dep),
+                )
+            conn.commit()
+
+    def aggregate_federation_monitor(self, *, online_ttl_sec: int) -> dict[str, int]:
+        cutoff = int(time.time()) - online_ttl_sec
+        recent_cutoff = int(time.time()) - 86400
+        with self._lock, self._connect() as conn:
+            total_row = conn.execute("SELECT COUNT(*) AS c FROM federation_bootstrap").fetchone()
+            recent_row = conn.execute(
+                "SELECT COUNT(*) AS c FROM federation_bootstrap WHERE last_bootstrap_unix >= ?",
+                (recent_cutoff,),
+            ).fetchone()
+            online_row = conn.execute(
+                """
+                SELECT COUNT(*) AS c
+                FROM federation_bootstrap f
+                INNER JOIN deployments d ON d.deployment_id = f.deployment_id
+                WHERE d.last_seen_unix >= ?
+                """,
+                (cutoff,),
+            ).fetchone()
+        return {
+            "members_total": int(total_row["c"] if total_row else 0),
+            "members_online": int(online_row["c"] if online_row else 0),
+            "members_recent_24h": int(recent_row["c"] if recent_row else 0),
+        }
 
     def aggregate_deployment_monitor(self, *, online_ttl_sec: int) -> dict[str, int | list[dict[str, int | str]]]:
         cutoff = int(time.time()) - online_ttl_sec

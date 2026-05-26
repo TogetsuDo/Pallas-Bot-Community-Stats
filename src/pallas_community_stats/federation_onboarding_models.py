@@ -16,6 +16,13 @@ class FederationCoordPublic(BaseModel):
     db: int | None = None
 
 
+class FederationPoolStatsPublic(BaseModel):
+    members_total: int = 0
+    members_online: int = 0
+    members_recent_24h: int = 0
+    coord_active_deployments: int | None = None
+
+
 class FederationOnboardingResponse(BaseModel):
     schema_version: int = 1
     phase: int = 2
@@ -36,3 +43,4 @@ class FederationOnboardingResponse(BaseModel):
     ingress_note: str = ""
     config_section_id: str = "control_plane"
     as_of: str = ""
+    pool_stats: FederationPoolStatsPublic | None = None

@@ -6,10 +6,13 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse, urlunparse
 
 from pallas_community_stats.config import Settings
+from pallas_community_stats.db import StatsStore
+from pallas_community_stats.federation_monitor import build_federation_monitor
 from pallas_community_stats.federation_onboarding_models import (
     FederationCoordPublic,
     FederationOnboardingResponse,
     FederationOnboardingStep,
+    FederationPoolStatsPublic,
 )
 
 # 与 Pallas-Bot community_stats.endpoints 主备一致（HTTP 接口可 failover）
@@ -52,7 +55,7 @@ def redis_url_public_display(redis_url: str) -> FederationCoordPublic | None:
     )
 
 
-def build_federation_onboarding(settings: Settings) -> FederationOnboardingResponse:
+def build_federation_onboarding(settings: Settings, store: StatsStore | None = None) -> FederationOnboardingResponse:
     as_of = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     bootstrap_on = bool(settings.bootstrap_enabled)
     federate_id = (settings.federate_id or "").strip() or None
@@ -111,6 +114,17 @@ def build_federation_onboarding(settings: Settings) -> FederationOnboardingRespo
         "去重 Redis 始终连 coord 子域（如下），与主备站无关。"
     )
 
+    pool_stats: FederationPoolStatsPublic | None = None
+    if store is not None:
+        monitor = build_federation_monitor(settings, store)
+        if monitor is not None:
+            pool_stats = FederationPoolStatsPublic(
+                members_total=monitor.members_total,
+                members_online=monitor.members_online,
+                members_recent_24h=monitor.members_recent_24h,
+                coord_active_deployments=monitor.coord_active_deployments,
+            )
+
     return FederationOnboardingResponse(
         available=federation_onboarding_enabled(settings),
         title="社区联邦：避免多套牛牛重复回复",
@@ -127,4 +141,5 @@ def build_federation_onboarding(settings: Settings) -> FederationOnboardingRespo
         steps=steps,
         ingress_note="牛牛直连去重服务器；中心只负责下发配置和本页说明，不转发每条群消息。",
         as_of=as_of,
+        pool_stats=pool_stats,
     )

@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml README.md ./
 COPY src ./src
 
-RUN uv pip install --system .
+RUN uv pip install --system ".[redis]"
 
 VOLUME ["/app/data"]
 ENV DB_PATH=/app/data/stats.db \
