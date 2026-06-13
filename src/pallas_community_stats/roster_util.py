@@ -18,7 +18,4 @@ def qq_profile_deep_link(qq: int) -> str:
         {"uin": str(int(qq)), "sourceType": "QrCodeShareBuddyLink"},
         separators=(",", ":"),
     )
-    return (
-        "tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile"
-        f"&actionParams={params}"
-    )
+    return f"tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams={params}"
