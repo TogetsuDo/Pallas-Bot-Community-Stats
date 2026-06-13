@@ -120,7 +120,8 @@ app.innerHTML = `
       </div>
       <div class="corpus-hot-shell tech-shell">
         <div class="corpus-hot__tabs" data-hot-tabs role="tablist" aria-label="热词统计范围">
-          <button type="button" class="corpus-hot__tab corpus-hot__tab--active" data-hot-period="pool" role="tab" aria-selected="true">高频池</button>
+          <button type="button" class="corpus-hot__tab corpus-hot__tab--active" data-hot-period="fleet" role="tab" aria-selected="true">机群</button>
+          <button type="button" class="corpus-hot__tab" data-hot-period="pool" role="tab" aria-selected="false">高频池</button>
           <button type="button" class="corpus-hot__tab" data-hot-period="day" role="tab" aria-selected="false">今日</button>
           <button type="button" class="corpus-hot__tab" data-hot-period="week" role="tab" aria-selected="false">本周</button>
           <button type="button" class="corpus-hot__tab" data-hot-period="month" role="tab" aria-selected="false">本月</button>

@@ -8,6 +8,7 @@ import {
 } from "./hotBubbleLayout";
 
 const TAB_LABELS: Record<HotTab, string> = {
+  fleet: "机群",
   pool: "高频池",
   day: "今日",
   week: "本周",
@@ -21,7 +22,7 @@ export class CorpusWordCloud {
   private readonly detailEl: HTMLElement;
   private readonly emptyEl: HTMLElement;
   private readonly legendEl: HTMLElement;
-  private tab: HotTab = "pool";
+  private tab: HotTab = "fleet";
   private items: HotCorpusItem[] = [];
   private selectedKeywords: string | null = null;
   private loadFn: ((tab: HotTab) => Promise<CorpusHotData>) | null = null;
@@ -81,8 +82,14 @@ export class CorpusWordCloud {
       const data = await this.loadFn(this.tab);
       this.items = data.items;
       const scope =
-        this.tab === "pool" ? "社区高频池" : `${TAB_LABELS[this.tab]}近期活跃`;
-      this.legendEl.textContent = `${scope} · 气泡越大越热 · 点击查看代表回复`;
+        this.tab === "fleet"
+          ? "近24h各部署热词叠加"
+          : this.tab === "pool"
+            ? "社区高频池"
+            : `${TAB_LABELS[this.tab]}近期活跃`;
+      const hint =
+        this.tab === "fleet" ? "气泡越大越热 · 点击查看热度" : "气泡越大越热 · 点击查看代表回复";
+      this.legendEl.textContent = `${scope} · ${hint}`;
       this.renderCloud();
       this.renderDetail();
     } catch (err) {
@@ -103,9 +110,11 @@ export class CorpusWordCloud {
     if (!this.items.length) {
       this.emptyEl.hidden = false;
       this.emptyEl.textContent =
-        this.tab === "pool"
-          ? "暂无共享语料高频词。接入并贡献语料后，这里会展示社区累计最热触发词。"
-          : "该时段暂无近期活跃热词。可切换到「高频池」查看累计热度。";
+        this.tab === "fleet"
+          ? "暂无机群热词。各部署开启语料贡献并上报心跳后，这里会展示近24h热词叠加榜。"
+          : this.tab === "pool"
+            ? "暂无共享语料高频词。接入并贡献语料后，这里会展示社区累计最热触发词。"
+            : "该时段暂无近期活跃热词。可切换到「机群」或「高频池」查看。";
       return;
     }
     this.emptyEl.hidden = true;
@@ -214,9 +223,11 @@ export class CorpusWordCloud {
     const meta = document.createElement("p");
     meta.className = "corpus-hot__detail-meta";
     meta.textContent =
-      this.tab === "pool"
-        ? `累计热度 ${item.score}`
-        : `${TAB_LABELS[this.tab]}热度 ${item.score}`;
+      this.tab === "fleet"
+        ? `机群叠加热度 ${item.score}`
+        : this.tab === "pool"
+          ? `累计热度 ${item.score}`
+          : `${TAB_LABELS[this.tab]}热度 ${item.score}`;
 
     titleWrap.append(title, meta);
 
@@ -236,7 +247,7 @@ export class CorpusWordCloud {
     if (!item.answers.length) {
       const li = document.createElement("li");
       li.className = "corpus-hot__reply corpus-hot__reply--empty";
-      li.textContent = "暂无代表回复";
+      li.textContent = this.tab === "fleet" ? "机群榜不含代表回复" : "暂无代表回复";
       list.appendChild(li);
     } else {
       item.answers.forEach((answer) => {

@@ -1,6 +1,6 @@
 export type HotPeriod = "day" | "week" | "month";
-export type HotMode = "pool" | "recent";
-export type HotTab = "pool" | HotPeriod;
+export type HotMode = "fleet" | "pool" | "recent";
+export type HotTab = "fleet" | "pool" | HotPeriod;
 
 export type HotCorpusAnswer = {
   answer_keywords: string;
@@ -80,9 +80,11 @@ export async function fetchBubbleRoster(): Promise<RosterBubble> {
   return resp.json() as Promise<RosterBubble>;
 }
 
-export async function fetchCorpusHot(tab: HotTab = "pool", limit = 40): Promise<CorpusHotData> {
+export async function fetchCorpusHot(tab: HotTab = "fleet", limit = 40): Promise<CorpusHotData> {
   const params = new URLSearchParams({ limit: String(limit) });
-  if (tab === "pool") {
+  if (tab === "fleet") {
+    params.set("mode", "fleet");
+  } else if (tab === "pool") {
     params.set("mode", "pool");
   } else {
     params.set("mode", "recent");

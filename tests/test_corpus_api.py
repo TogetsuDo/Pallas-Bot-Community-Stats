@@ -119,7 +119,7 @@ def test_corpus_hot_strips_cq_message(corpus_client: TestClient) -> None:
         },
         headers=headers,
     )
-    hot = corpus_client.get("/v1/corpus/hot", params={"period": "month"}).json()
+    hot = corpus_client.get("/v1/corpus/hot", params={"mode": "recent", "period": "month"}).json()
     row = next(item for item in hot["items"] if item["keywords"] == "早安")
     assert row["answers"][0]["message"] == "早啊呀"
 
@@ -159,7 +159,7 @@ def test_corpus_hot_skips_cq_only_keywords(corpus_client: TestClient, monkeypatc
         },
         headers=headers,
     )
-    hot = corpus_client.get("/v1/corpus/hot", params={"period": "month"}).json()
+    hot = corpus_client.get("/v1/corpus/hot", params={"mode": "recent", "period": "month"}).json()
     keywords = [item["keywords"] for item in hot["items"]]
     assert "可见词" in keywords
     assert "[CQ:face,id=178]" not in keywords

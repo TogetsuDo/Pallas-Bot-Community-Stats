@@ -466,12 +466,12 @@ class CorpusStore:
     def aggregate_hot_keywords(
         self,
         *,
-        mode: str = "pool",
+        mode: str = "fleet",
         period: str = "day",
         limit: int = 40,
         answers_per_keyword: int = 3,
     ) -> list[dict[str, object]]:
-        mode = mode if mode in ("pool", "recent", "fleet") else "pool"
+        mode = mode if mode in ("pool", "recent", "fleet") else "fleet"
         limit = max(5, min(int(limit), 80))
         answers_per_keyword = max(1, min(int(answers_per_keyword), 8))
         if mode == "recent":

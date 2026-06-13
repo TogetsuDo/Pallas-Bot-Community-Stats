@@ -293,7 +293,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         @app.get("/v1/corpus/hot", response_model=CorpusHotResponse)
         async def corpus_hot(
             response: Response,
-            mode: HotCorpusMode = Query(default="pool"),
+            mode: HotCorpusMode = Query(default="fleet"),
             period: HotCorpusPeriod = Query(default="day"),
             limit: int = Query(default=40, ge=5, le=80),
             settings: Settings = Depends(_app_settings),
