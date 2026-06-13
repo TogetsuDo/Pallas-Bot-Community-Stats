@@ -63,9 +63,7 @@ class RosterStore:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_roster_bots_bot_key ON roster_bots(bot_key)")
             cols = {c[1] for c in conn.execute("PRAGMA table_info(roster_bots)").fetchall()}
             if "show_qq" not in cols:
-                conn.execute(
-                    "ALTER TABLE roster_bots ADD COLUMN show_qq INTEGER NOT NULL DEFAULT 1"
-                )
+                conn.execute("ALTER TABLE roster_bots ADD COLUMN show_qq INTEGER NOT NULL DEFAULT 1")
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS roster_deployment_prefs (
