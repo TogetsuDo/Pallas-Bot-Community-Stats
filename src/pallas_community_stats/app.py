@@ -148,6 +148,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         nickname=entry.nickname,
                         online=entry.online,
                         message_weight=entry.message_weight,
+                        show_qq=entry.show_qq,
                     )
                     for entry in body.roster
                 ],

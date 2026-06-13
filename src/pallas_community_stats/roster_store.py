@@ -15,6 +15,7 @@ class RosterUpsertEntry:
     nickname: str
     online: bool
     message_weight: int
+    show_qq: bool = True
 
 
 @dataclass(frozen=True)
@@ -53,12 +54,18 @@ class RosterStore:
                     nickname TEXT NOT NULL DEFAULT '',
                     online INTEGER NOT NULL DEFAULT 0,
                     message_weight INTEGER NOT NULL DEFAULT 0,
+                    show_qq INTEGER NOT NULL DEFAULT 1,
                     updated_unix INTEGER NOT NULL,
                     PRIMARY KEY (deployment_id, bot_key)
                 )
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_roster_bots_bot_key ON roster_bots(bot_key)")
+            cols = {c[1] for c in conn.execute("PRAGMA table_info(roster_bots)").fetchall()}
+            if "show_qq" not in cols:
+                conn.execute(
+                    "ALTER TABLE roster_bots ADD COLUMN show_qq INTEGER NOT NULL DEFAULT 1"
+                )
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS roster_deployment_prefs (
@@ -125,8 +132,8 @@ class RosterStore:
                     """
                     INSERT INTO roster_bots (
                         deployment_id, bot_key, qq, nickname, online,
-                        message_weight, updated_unix
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        message_weight, show_qq, updated_unix
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         dep,
@@ -135,6 +142,7 @@ class RosterStore:
                         (entry.nickname or "").strip()[:64],
                         1 if entry.online else 0,
                         int(entry.message_weight),
+                        1 if entry.show_qq else 0,
                         seen_unix,
                     ),
                 )
@@ -159,6 +167,7 @@ class RosterStore:
                 """
                 SELECT rb.bot_key, rb.qq, rb.nickname, rb.online,
                        rb.message_weight, rb.updated_unix,
+                       COALESCE(rb.show_qq, 1) AS entry_show_qq,
                        COALESCE(rp.show_qq, 1) AS show_qq,
                        COALESCE(rp.show_profile, 1) AS show_profile
                 FROM roster_bots rb
@@ -175,6 +184,7 @@ class RosterStore:
             key = str(row["bot_key"])
             row_show_qq = bool(row["show_qq"])
             row_show_profile = bool(row["show_profile"])
+            entry_show_qq = bool(row["entry_show_qq"]) and row_show_qq
             bucket = merged.get(key)
             if bucket is None:
                 merged[key] = {
@@ -183,11 +193,11 @@ class RosterStore:
                     "online": bool(row["online"]),
                     "message_weight": int(row["message_weight"]),
                     "updated_unix": int(row["updated_unix"]),
-                    "show_qq": row_show_qq,
+                    "show_qq": entry_show_qq,
                     "show_profile": row_show_profile,
                 }
                 continue
-            bucket["show_qq"] = bool(bucket["show_qq"]) or row_show_qq
+            bucket["show_qq"] = bool(bucket["show_qq"]) or entry_show_qq
             bucket["show_profile"] = bool(bucket["show_profile"]) or row_show_profile
             bucket["online"] = bool(bucket["online"]) or bool(row["online"])
             bucket["message_weight"] = max(int(bucket["message_weight"]), int(row["message_weight"]))

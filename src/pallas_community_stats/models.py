@@ -14,6 +14,7 @@ class RosterEntryBody(BaseModel):
     nickname: Annotated[str, Field(default="", max_length=64)] = ""
     online: bool = False
     message_weight: Annotated[int, Field(ge=0, le=10_000_000)] = 0
+    show_qq: bool = True
 
 
 class HeartbeatBody(BaseModel):
