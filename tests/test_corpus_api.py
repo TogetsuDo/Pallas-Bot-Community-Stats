@@ -56,6 +56,44 @@ def test_corpus_enroll_and_read(corpus_client: TestClient) -> None:
     assert data["answers"][0]["messages"] == ["早啊"]
 
 
+def test_corpus_hot_keywords_by_period(corpus_client: TestClient, monkeypatch) -> None:
+    dep = str(uuid.uuid4())
+    token = corpus_client.post("/v1/corpus/enroll", json={"deployment_id": dep}).json()["corpus_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    now = 1_700_000_000
+    monkeypatch.setattr("pallas_community_stats.corpus_store.time.time", lambda: now)
+    for keywords, answer, score_time in [
+        ("你好", "早啊", now - 1000),
+        ("晚安", "好梦", now - 5000),
+        ("旧词", "过时", now - 200_000),
+    ]:
+        corpus_client.post(
+            "/v1/corpus/contribute",
+            json={
+                "op": "upsert_answer",
+                "keywords": keywords,
+                "group_id": 0,
+                "answer_keywords": answer,
+                "answer_time": score_time,
+                "message": answer,
+                "append_on_existing": True,
+            },
+            headers=headers,
+        )
+
+    hot = corpus_client.get("/v1/corpus/hot", params={"period": "day", "limit": 10})
+    assert hot.status_code == 200
+    body = hot.json()
+    assert body["period"] == "day"
+    assert body["window_sec"] == 86400
+    keywords = [item["keywords"] for item in body["items"]]
+    assert "你好" in keywords
+    assert "晚安" in keywords
+    assert "旧词" not in keywords
+    hello = next(item for item in body["items"] if item["keywords"] == "你好")
+    assert hello["answers"][0]["message"] == "早啊"
+
+
 def test_corpus_contribute_forbidden_when_disabled(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     settings = Settings(

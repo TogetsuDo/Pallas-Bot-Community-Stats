@@ -1,3 +1,24 @@
+export type HotPeriod = "day" | "week" | "month";
+
+export type HotCorpusAnswer = {
+  answer_keywords: string;
+  message: string;
+  count: number;
+};
+
+export type HotCorpusItem = {
+  keywords: string;
+  score: number;
+  answers: HotCorpusAnswer[];
+};
+
+export type CorpusHotData = {
+  period: HotPeriod;
+  window_sec: number;
+  as_of: string;
+  items: HotCorpusItem[];
+};
+
 export type MonitorOverview = {
   online_ttl_sec: number;
   as_of: string;
@@ -54,6 +75,13 @@ export async function fetchBubbleRoster(): Promise<RosterBubble> {
   const resp = await fetch("/v1/roster/bubble");
   if (!resp.ok) throw new Error(`bubble ${resp.status}`);
   return resp.json() as Promise<RosterBubble>;
+}
+
+export async function fetchCorpusHot(period: HotPeriod = "day", limit = 40): Promise<CorpusHotData> {
+  const params = new URLSearchParams({ period, limit: String(limit) });
+  const resp = await fetch(`/v1/corpus/hot?${params}`);
+  if (!resp.ok) throw new Error(`corpus hot ${resp.status}`);
+  return resp.json() as Promise<CorpusHotData>;
 }
 
 export function formatNum(n: number | undefined | null): string {

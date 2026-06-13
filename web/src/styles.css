@@ -114,6 +114,10 @@ a {
   scroll-margin-top: 72px;
 }
 
+.section--hot {
+  scroll-margin-top: 72px;
+}
+
 .section__intro h1,
 .section__intro h2 {
   margin: 0 0 8px;
@@ -567,4 +571,121 @@ a {
   transform: translateX(-50%);
   box-shadow: var(--shadow);
   pointer-events: none;
+}
+
+.corpus-hot-shell {
+  margin-top: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  padding: 16px;
+}
+
+.corpus-hot__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.corpus-hot__tab {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.corpus-hot__tab--active {
+  border-color: rgba(254, 125, 55, 0.45);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.corpus-hot__cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 14px;
+  min-height: 120px;
+  padding: 8px 4px 12px;
+}
+
+.corpus-hot__word {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.corpus-hot__word:hover,
+.corpus-hot__word--active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.corpus-hot__detail {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.corpus-hot__detail-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.corpus-hot__detail-meta {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.corpus-hot__reply-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.corpus-hot__reply {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.corpus-hot__reply-text {
+  margin: 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.corpus-hot__reply-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.corpus-hot__empty,
+.corpus-hot__reply--empty {
+  color: var(--muted);
+}
+
+.corpus-hot__empty {
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
 }

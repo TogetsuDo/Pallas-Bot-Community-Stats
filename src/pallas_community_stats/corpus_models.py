@@ -87,3 +87,25 @@ class CorpusUsageResponse(BaseModel):
     read_hits: int = 0
     contribute_ok: int = 0
     updated_at: int | None = None
+
+
+HotCorpusPeriod = Literal["day", "week", "month"]
+
+
+class HotCorpusAnswer(BaseModel):
+    answer_keywords: str
+    message: str = ""
+    count: int = 0
+
+
+class HotCorpusItem(BaseModel):
+    keywords: str
+    score: int
+    answers: list[HotCorpusAnswer] = Field(default_factory=list)
+
+
+class CorpusHotResponse(BaseModel):
+    period: HotCorpusPeriod
+    window_sec: int
+    as_of: str
+    items: list[HotCorpusItem] = Field(default_factory=list)

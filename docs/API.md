@@ -375,6 +375,36 @@
 | `contribute_ok` | 成功写入共享池的次数 |
 | `updated_at` | 最近一次计数变更的 Unix 秒 |
 
+### `GET /v1/corpus/hot`
+
+公开只读：按时间窗口聚合共享池最热触发词及代表回复。无需鉴权；`CORPUS_ENABLED=false` 时路由不可用。
+
+**Query：** `period`（`day` / `week` / `month`，默认 `day`）、`limit`（5–80，默认 40）
+
+**200**
+
+```json
+{
+  "period": "day",
+  "window_sec": 86400,
+  "as_of": "2026-06-14T00:00:00Z",
+  "items": [
+    {
+      "keywords": "你好",
+      "score": 12,
+      "answers": [
+        { "answer_keywords": "早啊", "message": "早啊", "count": 8 }
+      ]
+    }
+  ]
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `score` | 窗口内该触发词关联回复的 `count` 合计 |
+| `answers` | 窗口内热度最高的若干代表回复（默认最多 3 条） |
+
 ### `GET /v1/corpus/context`
 
 **Headers：** `Authorization: Bearer pc_...`  

@@ -1,7 +1,8 @@
-import { fetchBubbleRoster, fetchOverview, formatNum } from "./api";
+import { fetchBubbleRoster, fetchCorpusHot, fetchOverview, formatNum } from "./api";
 import brandMarkUrl from "./assets/favicon.png?url";
 import { BubbleWall } from "./bubble";
 import { renderOverview, renderOverviewError } from "./overview";
+import { CorpusWordCloud } from "./wordCloud";
 import "./styles.css";
 
 function ensureFavicon(): void {
@@ -42,6 +43,24 @@ app.innerHTML = `
         <div data-bubble-empty class="bubble-empty" hidden></div>
         <div data-bubble-canvas class="bubble-canvas"></div>
       </div>
+      <a class="scroll-hint" href="#wordcloud">向下查看热词云 ↓</a>
+    </section>
+
+    <section id="wordcloud" class="section section--hot">
+      <div class="section__intro">
+        <h2>共享语料热词</h2>
+        <p class="section__legend" data-hot-legend>进入视口后加载热词…</p>
+      </div>
+      <div class="corpus-hot-shell">
+        <div class="corpus-hot__tabs" data-hot-tabs role="tablist" aria-label="热词时间范围">
+          <button type="button" class="corpus-hot__tab corpus-hot__tab--active" data-hot-period="day" role="tab" aria-selected="true">今日</button>
+          <button type="button" class="corpus-hot__tab" data-hot-period="week" role="tab" aria-selected="false">本周</button>
+          <button type="button" class="corpus-hot__tab" data-hot-period="month" role="tab" aria-selected="false">本月</button>
+        </div>
+        <div data-hot-empty class="corpus-hot__empty" hidden></div>
+        <div data-hot-cloud class="corpus-hot__cloud" aria-label="热词云"></div>
+        <div data-hot-detail class="corpus-hot__detail" aria-live="polite"></div>
+      </div>
       <a class="scroll-hint" href="#overview">向下查看社区概览 ↓</a>
     </section>
 
@@ -72,6 +91,7 @@ const headerSub = document.querySelector<HTMLElement>("[data-header-sub]")!;
 const overviewRoot = document.querySelector<HTMLElement>("[data-overview-root]")!;
 const header = document.querySelector<HTMLElement>("[data-site-header]")!;
 const bubbleSection = document.querySelector<HTMLElement>("#bubble")!;
+const hotSection = document.querySelector<HTMLElement>("#wordcloud")!;
 
 void bootstrap();
 
@@ -92,6 +112,9 @@ async function bootstrap(): Promise<void> {
     headerSub.textContent = `在线 ${formatNum(data.bots_online)} / ${formatNum(data.bots_total)} 只公开牛`;
     return data.bots;
   });
+
+  const hotCloud = new CorpusWordCloud(hotSection);
+  hotCloud.observe((period) => fetchCorpusHot(period));
 
   window.addEventListener(
     "scroll",

@@ -5,13 +5,19 @@ import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from pallas_community_stats.bootstrap_routes import build_bootstrap_router
 from pallas_community_stats.config import Settings, get_settings
+from pallas_community_stats.corpus_models import (
+    CorpusHotResponse,
+    HotCorpusAnswer,
+    HotCorpusItem,
+    HotCorpusPeriod,
+)
 from pallas_community_stats.corpus_routes import build_corpus_router
-from pallas_community_stats.corpus_store import CorpusStore
+from pallas_community_stats.corpus_store import HOT_CORPUS_PERIOD_SEC, CorpusStore
 from pallas_community_stats.db import StatsStore
 from pallas_community_stats.federation_monitor import build_federation_monitor
 from pallas_community_stats.federation_onboarding import (
@@ -272,6 +278,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     if cfg.corpus_enabled:
+        @app.get("/v1/corpus/hot", response_model=CorpusHotResponse)
+        async def corpus_hot(
+            response: Response,
+            period: HotCorpusPeriod = Query(default="day"),
+            limit: int = Query(default=40, ge=5, le=80),
+            settings: Settings = Depends(_app_settings),
+        ) -> CorpusHotResponse:
+            window_sec = int(HOT_CORPUS_PERIOD_SEC.get(period, 86400))
+            rows = corpus_store.aggregate_hot_keywords(period=period, limit=limit)
+            response.headers["Cache-Control"] = "public, max-age=120"
+            return CorpusHotResponse(
+                period=period,
+                window_sec=window_sec,
+                as_of=monitor_as_of(),
+                items=[
+                    HotCorpusItem(
+                        keywords=str(row["keywords"]),
+                        score=int(row["score"]),
+                        answers=[
+                            HotCorpusAnswer(
+                                answer_keywords=str(ans["answer_keywords"]),
+                                message=str(ans.get("message") or ""),
+                                count=int(ans.get("count") or 0),
+                            )
+                            for ans in (row.get("answers") or [])
+                            if isinstance(ans, dict)
+                        ],
+                    )
+                    for row in rows
+                ],
+            )
+
         app.include_router(
             build_corpus_router(
                 store=corpus_store,

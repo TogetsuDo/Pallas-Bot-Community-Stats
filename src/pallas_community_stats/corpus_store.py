@@ -25,6 +25,9 @@ class CorpusTokenRecord:
     expires_unix: int | None
 
 
+HOT_CORPUS_PERIOD_SEC = {"day": 86400, "week": 604800, "month": 2592000}
+
+
 class CorpusStore:
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
@@ -438,3 +441,67 @@ class CorpusStore:
             "read_enabled_total": int(read_row["c"] if read_row else 0),
             "contribute_enabled_total": int(contrib_row["c"] if contrib_row else 0),
         }
+
+    _HOT_PERIOD_SEC = HOT_CORPUS_PERIOD_SEC
+
+    def aggregate_hot_keywords(
+        self,
+        *,
+        period: str,
+        limit: int = 40,
+        answers_per_keyword: int = 3,
+    ) -> list[dict[str, object]]:
+        window_sec = int(HOT_CORPUS_PERIOD_SEC.get(period, 86400))
+        cutoff = int(time.time()) - window_sec
+        limit = max(5, min(int(limit), 80))
+        answers_per_keyword = max(1, min(int(answers_per_keyword), 8))
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT c.keywords_hash, c.keywords, SUM(a.count) AS score
+                FROM corpus_answers a
+                INNER JOIN corpus_contexts c ON c.keywords_hash = a.keywords_hash
+                WHERE a.time >= ? AND a.group_id = 0
+                GROUP BY c.keywords_hash
+                ORDER BY score DESC, c.keywords ASC
+                LIMIT ?
+                """,
+                (cutoff, limit),
+            ).fetchall()
+            out: list[dict[str, object]] = []
+            for row in rows:
+                khash = str(row["keywords_hash"])
+                answer_rows = conn.execute(
+                    """
+                    SELECT answer_keywords, count, messages_json
+                    FROM corpus_answers
+                    WHERE keywords_hash = ? AND time >= ? AND group_id = 0
+                    ORDER BY count DESC, answer_keywords ASC
+                    LIMIT ?
+                    """,
+                    (khash, cutoff, answers_per_keyword),
+                ).fetchall()
+                answers: list[dict[str, object]] = []
+                for ans in answer_rows:
+                    messages = loads_messages(ans["messages_json"])
+                    message = ""
+                    for raw in messages:
+                        text = str(raw).strip()
+                        if text:
+                            message = text
+                            break
+                    if not message:
+                        message = str(ans["answer_keywords"] or "").strip()
+                    if len(message) > 120:
+                        message = message[:117] + "…"
+                    answers.append({
+                        "answer_keywords": str(ans["answer_keywords"] or ""),
+                        "message": message,
+                        "count": int(ans["count"] or 0),
+                    })
+                out.append({
+                    "keywords": str(row["keywords"] or ""),
+                    "score": int(row["score"] or 0),
+                    "answers": answers,
+                })
+        return out
