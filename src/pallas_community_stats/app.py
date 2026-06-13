@@ -258,6 +258,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 profile_url=row.profile_url,
                 online=row.online,
                 message_weight=row.message_weight,
+                deployment_ids=list(row.deployment_ids),
             )
             for row in rows
         ]

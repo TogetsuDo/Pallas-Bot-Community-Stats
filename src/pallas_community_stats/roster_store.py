@@ -27,6 +27,7 @@ class BubbleBotRow:
     profile_url: str
     online: bool
     message_weight: int
+    deployment_ids: tuple[str, ...] = ()
     show_qq: bool = True
     show_profile: bool = True
 
@@ -163,7 +164,7 @@ class RosterStore:
         with self._lock, self._connect() as conn:
             rows = conn.execute(
                 """
-                SELECT rb.bot_key, rb.qq, rb.nickname, rb.online,
+                SELECT rb.deployment_id, rb.bot_key, rb.qq, rb.nickname, rb.online,
                        rb.message_weight, rb.updated_unix,
                        COALESCE(rb.show_qq, 1) AS entry_show_qq,
                        COALESCE(rp.show_qq, 1) AS show_qq,
@@ -181,6 +182,7 @@ class RosterStore:
         for row in rows:
             if not bool(row["entry_show_qq"]):
                 continue
+            dep_id = str(row["deployment_id"])
             key = str(row["bot_key"])
             dep_show_qq = bool(row["show_qq"])
             dep_show_profile = bool(row["show_profile"])
@@ -194,12 +196,16 @@ class RosterStore:
                     "updated_unix": int(row["updated_unix"]),
                     "show_qq": dep_show_qq,
                     "show_profile": dep_show_profile,
+                    "deployment_ids": {dep_id},
                 }
                 continue
             bucket["show_qq"] = bool(bucket["show_qq"]) or dep_show_qq
             bucket["show_profile"] = bool(bucket["show_profile"]) or dep_show_profile
             bucket["online"] = bool(bucket["online"]) or bool(row["online"])
             bucket["message_weight"] = max(int(bucket["message_weight"]), int(row["message_weight"]))
+            cast_ids = bucket["deployment_ids"]
+            assert isinstance(cast_ids, set)
+            cast_ids.add(dep_id)
             nick = str(row["nickname"] or "").strip()
             if nick and int(row["updated_unix"]) >= int(bucket["updated_unix"]):
                 bucket["nickname"] = nick
@@ -211,6 +217,8 @@ class RosterStore:
             show_qq = bool(data["show_qq"])
             show_profile = bool(data["show_profile"])
             nickname = str(data["nickname"] or f"牛 {qq % 10000}") if show_profile else f"牛 {qq % 10000}"
+            dep_ids = data["deployment_ids"]
+            assert isinstance(dep_ids, set)
             out.append(
                 BubbleBotRow(
                     bot_key=bot_key,
@@ -220,6 +228,7 @@ class RosterStore:
                     profile_url=qq_profile_deep_link(qq) if show_qq else "",
                     online=bool(data["online"]),
                     message_weight=int(data["message_weight"]),
+                    deployment_ids=tuple(sorted(dep_ids)),
                     show_qq=show_qq,
                     show_profile=show_profile,
                 )

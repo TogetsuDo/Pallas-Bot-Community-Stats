@@ -318,7 +318,7 @@
 
 社区主站气泡墙只读数据。无需鉴权；`Cache-Control: public, max-age=60`。
 
-仅包含 **opt-in**（`roster_public=true`）且所属 deployment 在 `online_ttl_sec` 内心跳的牛。同一 QQ 跨部署合并：`online` 取或，`message_weight` 取最大。
+仅包含 **opt-in**（`roster_public=true`）且所属 deployment 在 `online_ttl_sec` 内心跳的牛。同一 QQ 跨部署合并：`online` 取或，`message_weight` 取最大；`deployment_ids` 保留该牛出现的全部部署 UUID（小写）。
 
 **200**
 
@@ -336,7 +336,8 @@
       "avatar_url": "https://q1.qlogo.cn/g?b=qq&nk=123456789&s=160",
       "profile_url": "tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams=…",
       "online": true,
-      "message_weight": 1280
+      "message_weight": 1280,
+      "deployment_ids": ["550e8400-e29b-41d4-a716-446655440000"]
     }
   ]
 }

@@ -119,6 +119,7 @@ class BubbleBotPublic(BaseModel):
     profile_url: str = ""
     online: bool
     message_weight: int
+    deployment_ids: list[str] = Field(default_factory=list)
 
 
 class RosterBubbleResponse(BaseModel):

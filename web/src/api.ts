@@ -58,6 +58,7 @@ export type BubbleBot = {
   profile_url: string;
   online: boolean;
   message_weight: number;
+  deployment_ids?: string[];
 };
 
 export type RosterBubble = {
