@@ -1,5 +1,5 @@
-import * as d3 from "d3";
 import type { CorpusHotData, HotCorpusItem, HotTab } from "./api";
+import { importD3 } from "./d3Loader";
 import {
   hotBubbleFill,
   hotBubbleFontSize,
@@ -42,15 +42,7 @@ export class CorpusWordCloud {
 
   observe(load: (tab: HotTab) => Promise<CorpusHotData>): void {
     this.loadFn = load;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        observer.disconnect();
-        void this.refresh();
-      },
-      { rootMargin: "120px 0px" },
-    );
-    observer.observe(this.section);
+    void this.refresh();
   }
 
   private bindTabs(): void {
@@ -90,7 +82,7 @@ export class CorpusWordCloud {
       const hint =
         this.tab === "fleet" ? "气泡越大越热 · 点击查看热度" : "气泡越大越热 · 点击查看代表回复";
       this.legendEl.textContent = `${scope} · ${hint}`;
-      this.renderCloud();
+      await this.renderCloud();
       this.renderDetail();
     } catch (err) {
       this.items = [];
@@ -104,8 +96,10 @@ export class CorpusWordCloud {
     }
   }
 
-  private renderCloud(): void {
+  private async renderCloud(): Promise<void> {
     const token = ++this.renderToken;
+    const d3 = await importD3();
+    if (token !== this.renderToken) return;
     this.cloudEl.innerHTML = "";
     if (!this.items.length) {
       this.emptyEl.hidden = false;
@@ -175,11 +169,9 @@ export class CorpusWordCloud {
 
     node.append("title").text((d) => `${d.item.keywords}\n热度 ${d.item.score}`);
 
-    if (token !== this.renderToken) return;
-
     if (!this.resizeObserver) {
       this.resizeObserver = new ResizeObserver(() => {
-        if (this.items.length) this.renderCloud();
+        if (this.items.length) void this.renderCloud();
       });
       this.resizeObserver.observe(this.cloudEl);
     }

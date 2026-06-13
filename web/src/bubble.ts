@@ -1,5 +1,5 @@
-import * as d3 from "d3";
 import type { BubbleBot } from "./api";
+import { importD3 } from "./d3Loader";
 import { openQQProfile } from "./qqProfile";
 
 type BubbleDatum = {
@@ -7,8 +7,6 @@ type BubbleDatum = {
   value: number;
   children?: BubbleDatum[];
 };
-
-type PackNode = d3.HierarchyCircularNode<BubbleDatum>;
 
 function isBubbleClickable(bot?: BubbleBot): bot is BubbleBot {
   if (!bot) return false;
@@ -51,7 +49,7 @@ export class BubbleWall {
   private async refresh(load: () => Promise<BubbleBot[]>): Promise<void> {
     try {
       const bots = await load();
-      this.render(bots);
+      await this.render(bots);
     } catch (err) {
       this.empty.hidden = false;
       this.empty.textContent = `气泡数据加载失败：${err instanceof Error ? err.message : String(err)}`;
@@ -61,8 +59,11 @@ export class BubbleWall {
     }
   }
 
-  private render(bots: BubbleBot[]): void {
+  private async render(bots: BubbleBot[]): Promise<void> {
     const token = ++this.renderToken;
+    const d3 = await importD3();
+    type PackNode = import("d3").HierarchyCircularNode<BubbleDatum>;
+    if (token !== this.renderToken) return;
     this.lastBots = bots;
     const onlineCount = bots.filter((bot) => bot.online).length;
     this.legend.textContent = `上报公开共 ${bots.length} 只 · 在线 ${onlineCount} 只 · 点击头像查看昵称与添加好友`;
@@ -241,9 +242,11 @@ export class BubbleWall {
       }
     }
 
+    if (token !== this.renderToken) return;
+
     if (!this.resizeObserver) {
       this.resizeObserver = new ResizeObserver(() => {
-        if (this.lastBots.length) this.render(this.lastBots);
+        if (this.lastBots.length) void this.render(this.lastBots);
       });
       this.resizeObserver.observe(this.canvasHost);
     }

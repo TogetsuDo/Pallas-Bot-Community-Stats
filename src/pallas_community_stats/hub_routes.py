@@ -4,7 +4,17 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from starlette.staticfiles import StaticFiles
+
+
+class HubAssetCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/assets/") and response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
 
 
 def hub_static_dir() -> Path:
@@ -19,6 +29,8 @@ def register_hub_routes(app) -> None:
     static_root = hub_static_dir()
     if not hub_static_built():
         return
+
+    app.add_middleware(HubAssetCacheMiddleware)
 
     assets_dir = static_root / "assets"
     if assets_dir.is_dir():

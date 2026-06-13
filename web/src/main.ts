@@ -1,7 +1,5 @@
 import { fetchBubbleRoster, fetchCorpusHot, fetchOverview, formatNum } from "./api";
 import brandMarkUrl from "./assets/favicon.png?url";
-import { BotListPanel } from "./botList";
-import { BubbleWall } from "./bubble";
 import { initSectionMotion, markAppReady } from "./motion";
 import {
   renderHeroMetrics,
@@ -10,7 +8,6 @@ import {
   renderOverviewError,
 } from "./overview";
 import { bindHubThemeToggle, initHubTheme } from "./theme";
-import { CorpusWordCloud } from "./wordCloud";
 import "./styles.css";
 
 function ensureFavicon(): void {
@@ -153,21 +150,30 @@ const bubbleSection = document.querySelector<HTMLElement>("#bubble")!;
 const hotSection = document.querySelector<HTMLElement>("#wordcloud")!;
 
 initSectionMotion();
+
+const overviewPromise = fetchOverview();
+const rosterPromise = fetchBubbleRoster();
+
 void bootstrap();
+void loadOverviewPanels(overviewPromise);
 
 async function bootstrap(): Promise<void> {
+  const [{ BotListPanel }, { BubbleWall }] = await Promise.all([
+    import("./botList"),
+    import("./bubble"),
+  ]);
+
   const botList = new BotListPanel(bubbleSection);
   const wall = new BubbleWall(bubbleSection, {
     onBotsChange: (bots) => botList.update(bots),
   });
   wall.observe(async () => {
-    const data = await fetchBubbleRoster();
+    const data = await rosterPromise;
     headerSub.textContent = `在线 ${formatNum(data.bots_online)} / ${formatNum(data.bots_total)} 只公开牛`;
     return data.bots;
   });
 
-  const hotCloud = new CorpusWordCloud(hotSection);
-  hotCloud.observe((tab) => fetchCorpusHot(tab));
+  initWordCloudWhenVisible();
 
   window.addEventListener(
     "scroll",
@@ -176,13 +182,27 @@ async function bootstrap(): Promise<void> {
     },
     { passive: true },
   );
-
-  void loadOverviewPanels();
 }
 
-async function loadOverviewPanels(): Promise<void> {
+function initWordCloudWhenVisible(): void {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      void (async () => {
+        const { CorpusWordCloud } = await import("./wordCloud");
+        const hotCloud = new CorpusWordCloud(hotSection);
+        hotCloud.observe((tab) => fetchCorpusHot(tab));
+      })();
+    },
+    { rootMargin: "120px 0px" },
+  );
+  observer.observe(hotSection);
+}
+
+async function loadOverviewPanels(overviewReq: Promise<Awaited<ReturnType<typeof fetchOverview>>>): Promise<void> {
   try {
-    const overview = await fetchOverview();
+    const overview = await overviewReq;
     renderHeroMetrics(heroMetrics, overview);
     renderOverview(overviewRoot, overview);
     const dep = overview.deployments;
