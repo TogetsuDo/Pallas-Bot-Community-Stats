@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from urllib.parse import quote
 
 
 def bot_key_for_qq(qq: int) -> str:
@@ -19,4 +18,7 @@ def qq_profile_deep_link(qq: int) -> str:
         {"uin": str(int(qq)), "sourceType": "QrCodeShareBuddyLink"},
         separators=(",", ":"),
     )
-    return f"tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams={quote(params)}"
+    return (
+        "tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile"
+        f"&actionParams={params}"
+    )

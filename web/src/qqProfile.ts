@@ -1,5 +1,5 @@
 export async function openQQProfile(qq: number, profileUrl?: string): Promise<void> {
-  const url = profileUrl?.trim() || buildQQProfileDeepLink(qq);
+  const url = normalizeQQProfileUrl(qq, profileUrl);
   const fallbackTimer = window.setTimeout(() => {
     void copyQQFallback(qq);
   }, 1500);
@@ -12,22 +12,34 @@ export async function openQQProfile(qq: number, profileUrl?: string): Promise<vo
   navigateTencentDeepLink(url);
 }
 
+export function buildQQProfileDeepLink(qq: number): string {
+  const params = JSON.stringify({ uin: String(qq), sourceType: "QrCodeShareBuddyLink" });
+  return `tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams=${params}`;
+}
+
+function normalizeQQProfileUrl(qq: number, profileUrl?: string): string {
+  const raw = profileUrl?.trim() ?? "";
+  if (!raw) return buildQQProfileDeepLink(qq);
+  if (!raw.startsWith("tencent://ntqq-open")) return buildQQProfileDeepLink(qq);
+  if (!raw.includes("actionParams=")) return buildQQProfileDeepLink(qq);
+  return raw;
+}
+
 function navigateTencentDeepLink(url: string): void {
+  const iframe = document.createElement("iframe");
+  iframe.style.display = "none";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  window.setTimeout(() => iframe.remove(), 3000);
+
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.rel = "noopener noreferrer";
   anchor.style.display = "none";
   document.body.appendChild(anchor);
   anchor.click();
-  document.body.removeChild(anchor);
-  window.setTimeout(() => {
-    window.location.assign(url);
-  }, 80);
-}
-
-function buildQQProfileDeepLink(qq: number): string {
-  const params = JSON.stringify({ uin: String(qq), sourceType: "QrCodeShareBuddyLink" });
-  return `tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams=${encodeURIComponent(params)}`;
+  anchor.remove();
 }
 
 async function copyQQFallback(qq: number): Promise<void> {

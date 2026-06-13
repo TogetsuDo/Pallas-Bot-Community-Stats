@@ -89,8 +89,8 @@ export class BotListPanel {
           ? `QQ ${bot.qq} · ${status}`
           : `牛牛未公开QQ · ${status}`;
         const action =
-          bot.profile_url && bot.qq
-            ? `<button type="button" class="bot-list__action" data-bot-qq="${bot.qq}" data-bot-profile="${escapeHtml(bot.profile_url)}">添加好友</button>`
+          bot.qq
+            ? `<button type="button" class="bot-list__action" data-bot-qq="${bot.qq}">添加好友</button>`
             : "";
 
         return `
@@ -110,9 +110,8 @@ export class BotListPanel {
     this.listHost.querySelectorAll<HTMLButtonElement>(".bot-list__action").forEach((btn) => {
       btn.addEventListener("click", () => {
         const qq = Number(btn.dataset.botQq);
-        const profile = btn.dataset.botProfile;
-        if (!qq || !profile) return;
-        void openQQProfile(qq, profile);
+        if (!qq) return;
+        void openQQProfile(qq);
       });
     });
   }

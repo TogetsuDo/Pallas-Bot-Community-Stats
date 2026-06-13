@@ -272,14 +272,14 @@ export class BubbleWall {
     }
 
     const actions: HTMLElement[] = [name, meta];
-    if (bot.profile_url && bot.qq) {
+    if (bot.qq) {
       const addBtn = document.createElement("button");
       addBtn.type = "button";
       addBtn.className = "bubble-popover__add";
       addBtn.textContent = "添加好友";
       addBtn.addEventListener("click", (event) => {
         event.stopPropagation();
-        void openQQProfile(bot.qq!, bot.profile_url);
+        void openQQProfile(bot.qq!);
       });
       actions.push(addBtn);
     }
