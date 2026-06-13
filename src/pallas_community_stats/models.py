@@ -9,6 +9,13 @@ _UUID_RE = re.compile(
 )
 
 
+class RosterEntryBody(BaseModel):
+    qq: Annotated[int, Field(ge=1, le=999_999_999_999)]
+    nickname: Annotated[str, Field(default="", max_length=64)] = ""
+    online: bool = False
+    message_weight: Annotated[int, Field(ge=0, le=10_000_000)] = 0
+
+
 class HeartbeatBody(BaseModel):
     deployment_id: Annotated[str, Field(min_length=36, max_length=36)]
     ts: int | None = None
@@ -17,6 +24,8 @@ class HeartbeatBody(BaseModel):
     catalog_bots: Annotated[int, Field(ge=0, le=10_000)] = 0
     sharded: bool = False
     shard_workers: Annotated[int | None, Field(ge=0, le=256)] = None
+    roster_public: bool = False
+    roster: Annotated[list[RosterEntryBody], Field(max_length=256)] = Field(default_factory=list)
 
     @field_validator("deployment_id")
     @classmethod
@@ -96,3 +105,19 @@ class MonitorOverviewResponse(BaseModel):
     deployments: DeploymentMonitorStats
     corpus: CorpusMonitorStats | None = None
     federation: FederationMonitorStats | None = None
+
+
+class BubbleBotPublic(BaseModel):
+    bot_key: str
+    nickname: str
+    avatar_url: str
+    online: bool
+    message_weight: int
+
+
+class RosterBubbleResponse(BaseModel):
+    online_ttl_sec: int
+    as_of: str
+    bots_total: int
+    bots_online: int
+    bots: list[BubbleBotPublic]

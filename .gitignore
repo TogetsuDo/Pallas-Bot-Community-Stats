@@ -7,3 +7,7 @@ data/
 .env
 config/stats.toml
 *.db
+web/node_modules/
+web/dist/
+src/pallas_community_stats/hub_static/*
+!src/pallas_community_stats/hub_static/.gitkeep
