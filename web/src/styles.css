@@ -620,7 +620,12 @@ a {
 .hot-bubble-node {
   cursor: pointer;
   outline: none;
-  animation: hot-bubble-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.hot-bubble-node__body {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hot-bubble-enter 0.42s ease-out backwards;
   animation-delay: var(--hot-delay, 0ms);
 }
 
@@ -651,11 +656,9 @@ a {
 @keyframes hot-bubble-enter {
   from {
     opacity: 0;
-    transform: scale(0.4);
   }
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 

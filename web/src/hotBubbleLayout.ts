@@ -52,6 +52,7 @@ export function layoutHotBubbles(
 export function hotBubbleLabel(keywords: string, radius: number): string {
   const maxChars = radius < 26 ? 2 : radius < 38 ? 4 : radius < 52 ? 7 : 12;
   const text = keywords.trim();
+  if (!text) return "…";
   if (text.length <= maxChars) return text;
   return `${text.slice(0, Math.max(1, maxChars - 1))}…`;
 }

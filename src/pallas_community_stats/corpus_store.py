@@ -469,10 +469,13 @@ class CorpusStore:
                 ORDER BY score DESC, c.keywords ASC
                 LIMIT ?
                 """,
-                (cutoff, limit),
+                (cutoff, max(limit * 4, limit)),
             ).fetchall()
             out: list[dict[str, object]] = []
             for row in rows:
+                label = plain_message_text(str(row["keywords"] or ""))
+                if not label:
+                    continue
                 khash = str(row["keywords_hash"])
                 answer_rows = conn.execute(
                     """
@@ -495,6 +498,8 @@ class CorpusStore:
                             break
                     if not message:
                         message = plain_message_text(str(ans["answer_keywords"] or ""))
+                    if not message:
+                        continue
                     if len(message) > 120:
                         message = message[:117] + "…"
                     answers.append(
@@ -504,11 +509,15 @@ class CorpusStore:
                             "count": int(ans["count"] or 0),
                         }
                     )
+                if not answers:
+                    continue
                 out.append(
                     {
-                        "keywords": str(row["keywords"] or ""),
+                        "keywords": label,
                         "score": int(row["score"] or 0),
                         "answers": answers,
                     }
                 )
+                if len(out) >= limit:
+                    break
         return out

@@ -118,6 +118,45 @@ def test_corpus_hot_strips_cq_message(corpus_client: TestClient) -> None:
     assert ctx["answers"][0]["messages"] == ["早啊呀"]
 
 
+def test_corpus_hot_skips_cq_only_keywords(corpus_client: TestClient, monkeypatch) -> None:
+    dep = str(uuid.uuid4())
+    token = corpus_client.post("/v1/corpus/enroll", json={"deployment_id": dep}).json()["corpus_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    now = 1_700_000_000
+    monkeypatch.setattr("pallas_community_stats.corpus_store.time.time", lambda: now)
+    corpus_client.post(
+        "/v1/corpus/contribute",
+        json={
+            "op": "upsert_answer",
+            "keywords": "[CQ:face,id=178]",
+            "group_id": 0,
+            "answer_keywords": "x",
+            "answer_time": now - 100,
+            "message": "[CQ:image,file=abc]",
+            "append_on_existing": True,
+        },
+        headers=headers,
+    )
+    corpus_client.post(
+        "/v1/corpus/contribute",
+        json={
+            "op": "upsert_answer",
+            "keywords": "可见词",
+            "group_id": 0,
+            "answer_keywords": "回复",
+            "answer_time": now - 200,
+            "message": "有正文",
+            "append_on_existing": True,
+        },
+        headers=headers,
+    )
+    hot = corpus_client.get("/v1/corpus/hot", params={"period": "month"}).json()
+    keywords = [item["keywords"] for item in hot["items"]]
+    assert "可见词" in keywords
+    assert "[CQ:face,id=178]" not in keywords
+    assert all(keywords)
+
+
 def test_corpus_contribute_forbidden_when_disabled(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     settings = Settings(
