@@ -157,6 +157,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         else:
             roster_store.clear_deployment_roster(body.deployment_id)
+        if body.corpus_hot_snapshot and cfg.corpus_enabled:
+            snap = body.corpus_hot_snapshot
+            items_raw = snap.get("items") if isinstance(snap, dict) else None
+            if isinstance(items_raw, list):
+                as_of = int(snap.get("as_of") or server_ts) if isinstance(snap, dict) else server_ts
+                corpus_store.upsert_hot_snapshot(
+                    deployment_id=body.deployment_id,
+                    as_of_unix=as_of,
+                    items=[item for item in items_raw if isinstance(item, dict)],
+                )
         return HeartbeatResponse(server_ts=server_ts)
 
     @app.get("/v1/stats", response_model=StatsResponse)
@@ -290,6 +300,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ) -> CorpusHotResponse:
             if mode == "pool":
                 window_sec = 0
+            elif mode == "fleet":
+                window_sec = 86400
             else:
                 window_sec = int(HOT_CORPUS_PERIOD_SEC.get(period, 86400))
             rows = corpus_store.aggregate_hot_keywords(mode=mode, period=period, limit=limit)

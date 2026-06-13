@@ -90,7 +90,7 @@ class CorpusUsageResponse(BaseModel):
 
 
 HotCorpusPeriod = Literal["day", "week", "month"]
-HotCorpusMode = Literal["pool", "recent"]
+HotCorpusMode = Literal["pool", "recent", "fleet"]
 
 
 class HotCorpusAnswer(BaseModel):

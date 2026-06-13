@@ -28,6 +28,7 @@ class HeartbeatBody(BaseModel):
     roster_show_profile: bool = True
     roster_public: bool = False
     roster: Annotated[list[RosterEntryBody], Field(max_length=256)] = Field(default_factory=list)
+    corpus_hot_snapshot: dict[str, object] | None = None
 
     @field_validator("deployment_id")
     @classmethod

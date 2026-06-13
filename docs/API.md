@@ -383,7 +383,7 @@
 
 | 参数 | 默认 | 说明 |
 | --- | --- | --- |
-| `mode` | `pool` | `pool`：全量高频池（不按时间过滤）；`recent`：按 `period` 窗口统计近期活跃 |
+| `mode` | `pool` | `pool`：全量高频池；`recent`：按 `period` 窗口；`fleet`：近 24h 各站上报叠加（无代表回复） |
 | `period` | `day` | `mode=recent` 时生效：`day` / `week` / `month` |
 | `limit` | `40` | 5–80 |
 
@@ -413,6 +413,23 @@
 | `window_sec` | `pool` 时为 `0`；`recent` 时为对应窗口秒数 |
 | `score` | 统计范围内该触发词关联回复的 `count` 合计 |
 | `answers` | 热度最高的若干代表回复（默认最多 3 条） |
+
+`mode=fleet` 时 `answers` 为空数组，仅展示各部署近 24h 上报的热词叠加分；代表回复请结合 `mode=pool` 查看。
+
+### 心跳热词快照（可选）
+
+`POST /v1/heartbeat` body 可附带：
+
+```json
+{
+  "corpus_hot_snapshot": {
+    "as_of": 1700000000,
+    "items": [{ "keywords": "你好", "score": 12 }]
+  }
+}
+```
+
+仅存触发词与计数，不含 QQ、群号与消息正文。用于 `mode=fleet` 机群叠加榜。
 
 ### `GET /v1/corpus/context`
 

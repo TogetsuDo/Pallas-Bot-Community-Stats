@@ -81,6 +81,22 @@ class CorpusStore:
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_corpus_answers_hash ON corpus_answers(keywords_hash)")
             conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_corpus_answers_group_hash ON corpus_answers(group_id, keywords_hash)"
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS corpus_hot_snapshot (
+                    deployment_id TEXT NOT NULL,
+                    keywords_hash TEXT NOT NULL,
+                    keywords TEXT NOT NULL,
+                    score INTEGER NOT NULL,
+                    as_of_unix INTEGER NOT NULL,
+                    PRIMARY KEY (deployment_id, keywords_hash)
+                )
+                """
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_corpus_hot_snapshot_as_of ON corpus_hot_snapshot(as_of_unix)")
+            conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS corpus_deployment_usage (
                     deployment_id TEXT PRIMARY KEY,
@@ -199,7 +215,7 @@ class CorpusStore:
                 self._upsert_answer_row(
                     conn,
                     khash=khash,
-                    group_id=int(ans.get("group_id") or 0),
+                    group_id=0,
                     answer_keywords=str(ans.get("keywords") or ""),
                     answer_time=int(ans.get("time") or now),
                     message=None,
@@ -455,7 +471,7 @@ class CorpusStore:
         limit: int = 40,
         answers_per_keyword: int = 3,
     ) -> list[dict[str, object]]:
-        mode = mode if mode in ("pool", "recent") else "pool"
+        mode = mode if mode in ("pool", "recent", "fleet") else "pool"
         limit = max(5, min(int(limit), 80))
         answers_per_keyword = max(1, min(int(answers_per_keyword), 8))
         if mode == "recent":
@@ -464,6 +480,8 @@ class CorpusStore:
             time_filter = "AND a.time >= ?"
             keyword_params: tuple[int | str, ...] = (cutoff,)
             answer_time_filter = "AND time >= ?"
+        elif mode == "fleet":
+            return self.aggregate_hot_keywords_fleet(limit=limit)
         else:
             time_filter = ""
             keyword_params = ()
@@ -531,4 +549,62 @@ class CorpusStore:
                 )
                 if len(out) >= limit:
                     break
+        return out
+
+    def upsert_hot_snapshot(
+        self,
+        *,
+        deployment_id: str,
+        as_of_unix: int,
+        items: list[dict[str, object]],
+    ) -> None:
+        dep = (deployment_id or "").strip().lower()
+        if not dep:
+            return
+        now = int(time.time())
+        as_of = int(as_of_unix) if as_of_unix > 0 else now
+        with self._lock, self._connect() as conn:
+            conn.execute("DELETE FROM corpus_hot_snapshot WHERE deployment_id = ?", (dep,))
+            for row in items[:40]:
+                label = plain_message_text(str(row.get("keywords") or ""))
+                if not label:
+                    continue
+                khash = keywords_hash(label)
+                score = max(0, int(row.get("score") or 0))
+                conn.execute(
+                    """
+                    INSERT INTO corpus_hot_snapshot (
+                        deployment_id, keywords_hash, keywords, score, as_of_unix
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (dep, khash, label, score, as_of),
+                )
+            conn.commit()
+
+    def aggregate_hot_keywords_fleet(
+        self,
+        *,
+        limit: int = 40,
+        ttl_sec: int = 86400,
+    ) -> list[dict[str, object]]:
+        limit = max(5, min(int(limit), 80))
+        cutoff = int(time.time()) - max(3600, int(ttl_sec))
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT keywords_hash, MAX(keywords) AS keywords, SUM(score) AS score
+                FROM corpus_hot_snapshot
+                WHERE as_of_unix >= ?
+                GROUP BY keywords_hash
+                ORDER BY score DESC, keywords ASC
+                LIMIT ?
+                """,
+                (cutoff, limit),
+            ).fetchall()
+        out: list[dict[str, object]] = []
+        for row in rows:
+            label = plain_message_text(str(row["keywords"] or ""))
+            if not label:
+                continue
+            out.append({"keywords": label, "score": int(row["score"] or 0), "answers": []})
         return out
