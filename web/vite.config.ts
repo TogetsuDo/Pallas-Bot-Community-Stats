@@ -4,8 +4,16 @@ export default defineConfig({
   server: {
     port: 5199,
     proxy: {
-      "/v1": { target: "http://127.0.0.1:8099", changeOrigin: true },
-      "/health": { target: "http://127.0.0.1:8099", changeOrigin: true },
+      "/v1": {
+        target: process.env.VITE_STATS_PROXY ?? "https://stats.pallasbot.top",
+        changeOrigin: true,
+        secure: true,
+      },
+      "/health": {
+        target: process.env.VITE_STATS_PROXY ?? "https://stats.pallasbot.top",
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
   build: {

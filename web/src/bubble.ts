@@ -23,6 +23,7 @@ export class BubbleWall {
   private readonly canvasHost: HTMLElement;
   private readonly legend: HTMLElement;
   private readonly empty: HTMLElement;
+  private readonly onBotsChange?: (bots: BubbleBot[]) => void;
   private pollTimer: number | null = null;
   private started = false;
   private resizeObserver: ResizeObserver | null = null;
@@ -32,25 +33,19 @@ export class BubbleWall {
   private popoverEl: HTMLElement | null = null;
   private docClickBound: ((event: MouseEvent) => void) | null = null;
 
-  constructor(section: HTMLElement) {
+  constructor(section: HTMLElement, options?: { onBotsChange?: (bots: BubbleBot[]) => void }) {
     this.section = section;
     this.canvasHost = section.querySelector<HTMLElement>("[data-bubble-canvas]")!;
     this.legend = section.querySelector<HTMLElement>("[data-bubble-legend]")!;
     this.empty = section.querySelector<HTMLElement>("[data-bubble-empty]")!;
+    this.onBotsChange = options?.onBotsChange;
   }
 
   observe(load: () => Promise<BubbleBot[]>): void {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        if (this.started) return;
-        this.started = true;
-        void this.refresh(load);
-        this.pollTimer = window.setInterval(() => void this.refresh(load), BUBBLE_POLL_MS);
-      },
-      { rootMargin: "120px 0px" },
-    );
-    observer.observe(this.section);
+    if (this.started) return;
+    this.started = true;
+    void this.refresh(load);
+    this.pollTimer = window.setInterval(() => void this.refresh(load), BUBBLE_POLL_MS);
   }
 
   private async refresh(load: () => Promise<BubbleBot[]>): Promise<void> {
@@ -61,6 +56,7 @@ export class BubbleWall {
       this.empty.hidden = false;
       this.empty.textContent = `气泡数据加载失败：${err instanceof Error ? err.message : String(err)}`;
       this.canvasHost.innerHTML = "";
+      this.onBotsChange?.([]);
       this.hidePopover();
     }
   }
@@ -76,6 +72,7 @@ export class BubbleWall {
       this.empty.textContent =
         "暂无公开名册的牛牛。部署方可在 Pallas 控制台开启「社区名册公开」后出现在此（功能陆续接入）。";
       this.canvasHost.innerHTML = "";
+      this.onBotsChange?.([]);
       this.hidePopover();
       return;
     }
@@ -86,6 +83,7 @@ export class BubbleWall {
     }
 
     this.empty.hidden = true;
+    this.onBotsChange?.(bots);
     this.canvasHost.querySelector(".bubble-svg")?.remove();
 
     const width = this.canvasHost.clientWidth || 960;

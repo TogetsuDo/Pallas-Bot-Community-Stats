@@ -125,21 +125,18 @@ export class CorpusWordCloud {
         const active = d.item.keywords === this.selectedKeywords ? " hot-bubble-node--active" : "";
         return `hot-bubble-node${active}`;
       })
+      .attr("data-keywords", (d) => d.item.keywords)
       .attr("transform", (d) => `translate(${d.x},${d.y})`)
       .attr("role", "button")
       .attr("tabindex", 0)
       .attr("aria-pressed", (d) => (d.item.keywords === this.selectedKeywords ? "true" : "false"))
       .on("click", (_, d) => {
-        this.selectedKeywords = this.selectedKeywords === d.item.keywords ? null : d.item.keywords;
-        this.renderCloud();
-        this.renderDetail();
+        this.toggleKeywords(d.item.keywords);
       })
       .on("keydown", (event, d) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
-        this.selectedKeywords = this.selectedKeywords === d.item.keywords ? null : d.item.keywords;
-        this.renderCloud();
-        this.renderDetail();
+        this.toggleKeywords(d.item.keywords);
       });
 
     const body = node
@@ -173,11 +170,36 @@ export class CorpusWordCloud {
     }
   }
 
+  private toggleKeywords(keywords: string): void {
+    this.selectKeywords(this.selectedKeywords === keywords ? null : keywords);
+  }
+
+  private selectKeywords(keywords: string | null): void {
+    this.selectedKeywords = keywords;
+    this.syncSelectionState();
+    this.renderDetail();
+  }
+
+  private syncSelectionState(): void {
+    this.cloudEl.querySelectorAll<SVGGElement>("g.hot-bubble-node").forEach((el) => {
+      const key = el.getAttribute("data-keywords");
+      const active = key !== null && key === this.selectedKeywords;
+      el.classList.toggle("hot-bubble-node--active", active);
+      el.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
   private renderDetail(): void {
     this.detailEl.innerHTML = "";
     if (!this.selectedKeywords) return;
     const item = this.items.find((row) => row.keywords === this.selectedKeywords);
     if (!item) return;
+
+    const hd = document.createElement("div");
+    hd.className = "corpus-hot__detail-hd";
+
+    const titleWrap = document.createElement("div");
+    titleWrap.className = "corpus-hot__detail-heading";
 
     const title = document.createElement("h3");
     title.className = "corpus-hot__detail-title";
@@ -186,6 +208,19 @@ export class CorpusWordCloud {
     const meta = document.createElement("p");
     meta.className = "corpus-hot__detail-meta";
     meta.textContent = `${PERIOD_LABELS[this.period]}热度 ${item.score}`;
+
+    titleWrap.append(title, meta);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "corpus-hot__detail-close";
+    closeBtn.setAttribute("aria-label", "收起代表回复");
+    closeBtn.textContent = "收起";
+    closeBtn.addEventListener("click", () => {
+      this.selectKeywords(null);
+    });
+
+    hd.append(titleWrap, closeBtn);
 
     const list = document.createElement("ul");
     list.className = "corpus-hot__reply-list";
@@ -209,6 +244,6 @@ export class CorpusWordCloud {
       });
     }
 
-    this.detailEl.append(title, meta, list);
+    this.detailEl.append(hd, list);
   }
 }
