@@ -11,8 +11,10 @@ Pallas-Bot **opt-in** 社区统计与**共享语料**中心：接收各部署自
 
 | 用途 | URL |
 | --- | --- |
+| **社区主站** | `GET /`（概览 + 牛牛气泡墙，见 [docs/community-hub.md](docs/community-hub.md)） |
 | 公开统计 | `GET /v1/stats` |
 | 监控聚合 | `GET /v1/monitor/overview` |
+| 气泡名册 | `GET /v1/roster/bubble` |
 | 心跳 | `POST /v1/heartbeat` |
 | 健康检查 | `GET /health` |
 | 语料 enroll | `POST /v1/corpus/enroll` |
@@ -173,6 +175,21 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 uv sync --group dev
 cp config/stats.example.toml config/stats.toml
 uv run pallas-community-stats
+```
+
+社区主站前端（`web/`）：
+
+```bash
+./scripts/build_hub.sh   # 产出 src/pallas_community_stats/hub_static/
+uv run pallas-community-stats
+# 浏览器打开 http://127.0.0.1:8099/
+```
+
+本地联调前端热更新：
+
+```bash
+uv run pallas-community-stats
+cd web && npm install && npm run dev   # http://127.0.0.1:5199 ，/v1 代理到 8099
 ```
 
 ```bash

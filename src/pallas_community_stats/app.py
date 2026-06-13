@@ -5,7 +5,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from pallas_community_stats.bootstrap_routes import build_bootstrap_router
@@ -19,17 +19,21 @@ from pallas_community_stats.federation_onboarding import (
     federation_onboarding_enabled,
 )
 from pallas_community_stats.federation_onboarding_models import FederationOnboardingResponse
+from pallas_community_stats.hub_routes import register_hub_routes
 from pallas_community_stats.models import (
+    BubbleBotPublic,
     CorpusMonitorStats,
     CorpusStatsResponse,
     DeploymentMonitorStats,
     HeartbeatBody,
     HeartbeatResponse,
     MonitorOverviewResponse,
+    RosterBubbleResponse,
     StatsResponse,
     VersionCount,
 )
 from pallas_community_stats.ratelimit import RateLimitExceeded, check_heartbeat_rate_limit, client_ip
+from pallas_community_stats.roster_store import RosterStore, RosterUpsertEntry
 from pallas_community_stats.shields import shields_endpoint_payload
 
 
@@ -72,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     cfg = settings or get_settings()
     store = StatsStore(cfg.db_path)
     corpus_store = CorpusStore(cfg.db_path)
+    roster_store = RosterStore(cfg.db_path)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -127,6 +132,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             sharded=body.sharded,
             shard_workers=body.shard_workers,
         )
+        if body.roster_public and body.roster:
+            roster_store.replace_deployment_roster(
+                deployment_id=body.deployment_id,
+                entries=[
+                    RosterUpsertEntry(
+                        qq=entry.qq,
+                        nickname=entry.nickname,
+                        online=entry.online,
+                        message_weight=entry.message_weight,
+                    )
+                    for entry in body.roster
+                ],
+                seen_unix=server_ts,
+            )
+        else:
+            roster_store.clear_deployment_roster(body.deployment_id)
         return HeartbeatResponse(server_ts=server_ts)
 
     @app.get("/v1/stats", response_model=StatsResponse)
@@ -202,6 +223,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         snap = store.aggregate_stats(online_ttl_sec=settings.online_ttl_sec)
         return _badge_response("在线牛", str(snap.bots_online_sum))
 
+    @app.get("/v1/roster/bubble", response_model=RosterBubbleResponse)
+    async def roster_bubble(
+        response: Response,
+        settings: Settings = Depends(_app_settings),
+    ) -> RosterBubbleResponse:
+        rows = roster_store.aggregate_bubble(online_ttl_sec=settings.online_ttl_sec)
+        bots = [
+            BubbleBotPublic(
+                bot_key=row.bot_key,
+                qq=row.qq,
+                nickname=row.nickname,
+                avatar_url=row.avatar_url,
+                profile_url=row.profile_url,
+                online=row.online,
+                message_weight=row.message_weight,
+            )
+            for row in rows
+        ]
+        response.headers["Cache-Control"] = "public, max-age=60"
+        return RosterBubbleResponse(
+            online_ttl_sec=settings.online_ttl_sec,
+            as_of=monitor_as_of(),
+            bots_total=len(bots),
+            bots_online=sum(1 for bot in bots if bot.online),
+            bots=bots,
+        )
+
     @app.get("/v1/federation/onboarding", response_model=FederationOnboardingResponse)
     async def federation_onboarding(
         settings: Settings = Depends(_app_settings),
@@ -237,4 +285,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = cfg
     app.state.store = store
     app.state.corpus_store = corpus_store
+    app.state.roster_store = roster_store
+    register_hub_routes(app)
     return app

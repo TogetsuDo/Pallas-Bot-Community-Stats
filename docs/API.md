@@ -53,6 +53,19 @@
 | `catalog_bots` | int | 否 | 名册 QQ 数，默认 0 |
 | `sharded` | bool | 否 | 是否分片部署 |
 | `shard_workers` | int | 否 | worker 数量，0–256 |
+| `roster_public` | bool | 否 | 是否公开本部署名册至社区气泡墙；默认 false |
+| `roster` | array | 否 | opt-in 名册，最多 256 条；见下表 |
+
+`roster` 元素：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `qq` | int | Bot QQ 号（中心侧存头像用，公开 API **不返回**） |
+| `nickname` | string | 展示昵称，最长 64 字符 |
+| `online` | bool | 是否在线 |
+| `message_weight` | int | 活跃度权重（如近 7 天消息量），0–10_000_000 |
+
+`roster_public=false` 或未传 `roster` 时，清除该 deployment 已存名册。
 
 示例：
 
@@ -301,6 +314,36 @@
 
 `bots-online` 的 `message` 为在线牛总和的十进制字符串。
 
+## `GET /v1/roster/bubble`
+
+社区主站气泡墙只读数据。无需鉴权；`Cache-Control: public, max-age=60`。
+
+仅包含 **opt-in**（`roster_public=true`）且所属 deployment 在 `online_ttl_sec` 内心跳的牛。同一 QQ 跨部署合并：`online` 取或，`message_weight` 取最大。
+
+**200**
+
+```json
+{
+  "online_ttl_sec": 900,
+  "as_of": "2026-06-14T12:00:00Z",
+  "bots_total": 2,
+  "bots_online": 1,
+  "bots": [
+    {
+      "bot_key": "a1b2…",
+      "qq": 123456789,
+      "nickname": "福牛一号",
+      "avatar_url": "https://q1.qlogo.cn/g?b=qq&nk=123456789&s=160",
+      "profile_url": "tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams=…",
+      "online": true,
+      "message_weight": 1280
+    }
+  ]
+}
+```
+
+页面入口：`GET /`（构建社区主站 SPA 后可用）。详见 [community-hub.md](./community-hub.md)。
+
 ## 语料 API（`/v1/corpus`）
 
 与 Pallas-Bot `RemoteCorpusRepository` 对接。
@@ -365,4 +408,4 @@
 
 ## 隐私
 
-心跳**不**接收 QQ 号列表、群号。语料 API 仅存匿名 `keywords` 与短句（`group_id=0`），不含 QQ/群号。
+默认心跳**不**接收 QQ 号列表、群号。仅当部署 **opt-in** `roster_public=true` 时，心跳可附带公开名册（`roster`）供气泡墙展示；公开 API 返回昵称、QQ 号与 `profile_url`（用于唤起 QQ 资料卡），不含群号与消息正文。语料 API 仅存匿名 `keywords` 与短句（`group_id=0`），不含 QQ/群号。
