@@ -227,7 +227,7 @@ a {
   border-radius: 20px;
   border: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-  overflow: hidden;
+  overflow: visible;
 }
 
 .bubble-canvas {
@@ -337,17 +337,26 @@ a {
 }
 
 .bubble-popover {
-  position: absolute;
-  z-index: 4;
+  position: fixed;
+  z-index: 40;
   min-width: 148px;
   max-width: min(240px, calc(100vw - 32px));
   padding: 12px 14px;
   border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(18, 24, 32, 0.96);
-  box-shadow: var(--shadow);
-  transform: translate(-50%, calc(-100% - 10px));
-  animation: bubble-popover-enter 0.2s ease-out;
+  border: 1px solid rgba(15, 20, 25, 0.1);
+  background: #ffffff;
+  color: #15202b;
+  box-shadow: 0 12px 32px rgba(15, 20, 25, 0.18);
+}
+
+.bubble-popover--above {
+  transform: translate(-50%, -100%);
+  animation: bubble-popover-enter-above 0.2s ease-out;
+}
+
+.bubble-popover--below {
+  transform: translate(-50%, 0);
+  animation: bubble-popover-enter-below 0.2s ease-out;
 }
 
 .bubble-popover__name {
@@ -356,11 +365,12 @@ a {
   font-weight: 700;
   line-height: 1.35;
   word-break: break-word;
+  color: #15202b;
 }
 
 .bubble-popover__meta {
   margin: 6px 0 0;
-  color: var(--muted);
+  color: #5f6f82;
   font-size: 0.78rem;
   line-height: 1.4;
 }
@@ -388,14 +398,25 @@ a {
   transform: translateY(1px);
 }
 
-@keyframes bubble-popover-enter {
+@keyframes bubble-popover-enter-above {
   from {
     opacity: 0;
-    transform: translate(-50%, calc(-100% - 4px));
+    transform: translate(-50%, calc(-100% + 6px));
   }
   to {
     opacity: 1;
-    transform: translate(-50%, calc(-100% - 10px));
+    transform: translate(-50%, -100%);
+  }
+}
+
+@keyframes bubble-popover-enter-below {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 }
 

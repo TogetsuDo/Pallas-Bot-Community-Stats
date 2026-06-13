@@ -10,6 +10,11 @@ type BubbleDatum = {
 
 type PackNode = d3.HierarchyCircularNode<BubbleDatum>;
 
+function isBubbleClickable(bot?: BubbleBot): bot is BubbleBot {
+  if (!bot) return false;
+  return Boolean(bot.profile_url || bot.avatar_url || bot.nickname.trim());
+}
+
 const BUBBLE_POLL_MS = 60_000;
 const PACK_PAD_RESERVE = 6;
 
@@ -138,20 +143,20 @@ export class BubbleWall {
       .join("g")
       .attr("class", (d) => {
         const online = d.data.bot?.online ? " bubble-node--online" : " bubble-node--offline";
-        const clickable = d.data.bot?.profile_url ? " bubble-node--clickable" : "";
+        const clickable = isBubbleClickable(d.data.bot) ? " bubble-node--clickable" : "";
         const active = d.data.bot?.bot_key === this.activeBotKey ? " bubble-node--active" : "";
         return `bubble-node${online}${clickable}${active}`;
       })
       .attr("data-bot-key", (d) => d.data.bot?.bot_key ?? "")
       .attr("transform", (d) => `translate(${d.x},${d.y})`)
       .style("--bubble-delay", (_, i) => `${Math.min(i * 45, 720)}ms`)
-      .attr("role", (d) => (d.data.bot?.profile_url ? "button" : null))
-      .attr("tabindex", (d) => (d.data.bot?.profile_url ? 0 : null))
+      .attr("role", (d) => (isBubbleClickable(d.data.bot) ? "button" : null))
+      .attr("tabindex", (d) => (isBubbleClickable(d.data.bot) ? 0 : null))
       .attr("aria-expanded", (d) => (d.data.bot?.bot_key === this.activeBotKey ? "true" : "false"))
       .on("click", (event, d) => {
         event.stopPropagation();
         const bot = d.data.bot;
-        if (!bot?.profile_url) return;
+        if (!isBubbleClickable(bot)) return;
         if (this.activeBotKey === bot.bot_key) {
           this.activeBotKey = null;
           this.hidePopover();
@@ -165,7 +170,7 @@ export class BubbleWall {
       .on("keydown", (event, d) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         const bot = d.data.bot;
-        if (!bot?.profile_url) return;
+        if (!isBubbleClickable(bot)) return;
         event.preventDefault();
         event.stopPropagation();
         if (this.activeBotKey === bot.bot_key) {
@@ -259,8 +264,11 @@ export class BubbleWall {
 
     const meta = document.createElement("p");
     meta.className = "bubble-popover__meta";
-    const qqLine = bot.qq ? `QQ ${bot.qq} · ` : "";
-    meta.textContent = `${qqLine}${bot.online ? "在线" : "离线"} · 活跃度 ${activityTier(bot.message_weight)}`;
+    if (bot.qq) {
+      meta.textContent = `QQ ${bot.qq} · ${bot.online ? "在线" : "离线"} · 活跃度 ${activityTier(bot.message_weight)}`;
+    } else {
+      meta.textContent = "牛牛未公开QQ";
+    }
 
     const actions: HTMLElement[] = [name, meta];
     if (bot.profile_url && bot.qq) {
@@ -277,9 +285,9 @@ export class BubbleWall {
 
     popover.append(...actions);
     popover.addEventListener("click", (event) => event.stopPropagation());
-    this.canvasHost.appendChild(popover);
+    document.body.appendChild(popover);
     this.popoverEl = popover;
-    this.positionPopover(nodeEl, popover);
+    requestAnimationFrame(() => this.positionPopover(nodeEl, popover));
 
     if (!this.docClickBound) {
       this.docClickBound = (event: MouseEvent) => {
@@ -299,11 +307,22 @@ export class BubbleWall {
 
   private positionPopover(nodeEl: SVGGElement, popover: HTMLElement): void {
     const bubbleRect = nodeEl.getBoundingClientRect();
-    const hostRect = this.canvasHost.getBoundingClientRect();
-    const centerX = bubbleRect.left - hostRect.left + bubbleRect.width / 2;
-    const topY = bubbleRect.top - hostRect.top;
-    popover.style.left = `${centerX}px`;
-    popover.style.top = `${topY}px`;
+    const centerX = bubbleRect.left + bubbleRect.width / 2;
+    const gap = 10;
+    const popHeight = popover.offsetHeight;
+    const fitsAbove = bubbleRect.top - gap >= popHeight;
+    const fitsBelow = bubbleRect.bottom + gap + popHeight <= window.innerHeight;
+
+    popover.classList.remove("bubble-popover--above", "bubble-popover--below");
+    if (fitsAbove || !fitsBelow) {
+      popover.classList.add("bubble-popover--above");
+      popover.style.left = `${centerX}px`;
+      popover.style.top = `${bubbleRect.top - gap}px`;
+    } else {
+      popover.classList.add("bubble-popover--below");
+      popover.style.left = `${centerX}px`;
+      popover.style.top = `${bubbleRect.bottom + gap}px`;
+    }
   }
 
   private hidePopover(): void {
