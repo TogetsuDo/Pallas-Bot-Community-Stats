@@ -497,14 +497,18 @@ class CorpusStore:
                         message = plain_message_text(str(ans["answer_keywords"] or ""))
                     if len(message) > 120:
                         message = message[:117] + "…"
-                    answers.append({
-                        "answer_keywords": str(ans["answer_keywords"] or ""),
-                        "message": message,
-                        "count": int(ans["count"] or 0),
-                    })
-                out.append({
-                    "keywords": str(row["keywords"] or ""),
-                    "score": int(row["score"] or 0),
-                    "answers": answers,
-                })
+                    answers.append(
+                        {
+                            "answer_keywords": str(ans["answer_keywords"] or ""),
+                            "message": message,
+                            "count": int(ans["count"] or 0),
+                        }
+                    )
+                out.append(
+                    {
+                        "keywords": str(row["keywords"] or ""),
+                        "score": int(row["score"] or 0),
+                        "answers": answers,
+                    }
+                )
         return out

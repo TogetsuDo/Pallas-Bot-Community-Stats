@@ -278,6 +278,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     if cfg.corpus_enabled:
+
         @app.get("/v1/corpus/hot", response_model=CorpusHotResponse)
         async def corpus_hot(
             response: Response,
