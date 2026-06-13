@@ -81,9 +81,10 @@ def test_corpus_hot_keywords_by_period(corpus_client: TestClient, monkeypatch) -
             headers=headers,
         )
 
-    hot = corpus_client.get("/v1/corpus/hot", params={"period": "day", "limit": 10})
+    hot = corpus_client.get("/v1/corpus/hot", params={"mode": "recent", "period": "day", "limit": 10})
     assert hot.status_code == 200
     body = hot.json()
+    assert body["mode"] == "recent"
     assert body["period"] == "day"
     assert body["window_sec"] == 86400
     keywords = [item["keywords"] for item in body["items"]]
@@ -92,6 +93,14 @@ def test_corpus_hot_keywords_by_period(corpus_client: TestClient, monkeypatch) -
     assert "旧词" not in keywords
     hello = next(item for item in body["items"] if item["keywords"] == "你好")
     assert hello["answers"][0]["message"] == "早啊"
+
+    pool = corpus_client.get("/v1/corpus/hot", params={"mode": "pool", "limit": 10})
+    assert pool.status_code == 200
+    pool_body = pool.json()
+    assert pool_body["mode"] == "pool"
+    assert pool_body["window_sec"] == 0
+    pool_keywords = [item["keywords"] for item in pool_body["items"]]
+    assert "旧词" in pool_keywords
 
 
 def test_corpus_hot_strips_cq_message(corpus_client: TestClient) -> None:

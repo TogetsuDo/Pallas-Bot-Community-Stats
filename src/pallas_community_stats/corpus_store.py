@@ -450,26 +450,36 @@ class CorpusStore:
     def aggregate_hot_keywords(
         self,
         *,
-        period: str,
+        mode: str = "pool",
+        period: str = "day",
         limit: int = 40,
         answers_per_keyword: int = 3,
     ) -> list[dict[str, object]]:
-        window_sec = int(HOT_CORPUS_PERIOD_SEC.get(period, 86400))
-        cutoff = int(time.time()) - window_sec
+        mode = mode if mode in ("pool", "recent") else "pool"
         limit = max(5, min(int(limit), 80))
         answers_per_keyword = max(1, min(int(answers_per_keyword), 8))
+        if mode == "recent":
+            window_sec = int(HOT_CORPUS_PERIOD_SEC.get(period, 86400))
+            cutoff = int(time.time()) - window_sec
+            time_filter = "AND a.time >= ?"
+            keyword_params: tuple[int | str, ...] = (cutoff,)
+            answer_time_filter = "AND time >= ?"
+        else:
+            time_filter = ""
+            keyword_params = ()
+            answer_time_filter = ""
         with self._lock, self._connect() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT c.keywords_hash, c.keywords, SUM(a.count) AS score
                 FROM corpus_answers a
                 INNER JOIN corpus_contexts c ON c.keywords_hash = a.keywords_hash
-                WHERE a.time >= ? AND a.group_id = 0
+                WHERE a.group_id = 0 {time_filter}
                 GROUP BY c.keywords_hash
                 ORDER BY score DESC, c.keywords ASC
                 LIMIT ?
                 """,
-                (cutoff, max(limit * 4, limit)),
+                (*keyword_params, max(limit * 4, limit)),
             ).fetchall()
             out: list[dict[str, object]] = []
             for row in rows:
@@ -477,15 +487,16 @@ class CorpusStore:
                 if not label:
                     continue
                 khash = str(row["keywords_hash"])
+                answer_params: tuple[int | str, ...] = (khash, *keyword_params, answers_per_keyword)
                 answer_rows = conn.execute(
-                    """
+                    f"""
                     SELECT answer_keywords, count, messages_json
                     FROM corpus_answers
-                    WHERE keywords_hash = ? AND time >= ? AND group_id = 0
+                    WHERE keywords_hash = ? AND group_id = 0 {answer_time_filter}
                     ORDER BY count DESC, answer_keywords ASC
                     LIMIT ?
                     """,
-                    (khash, cutoff, answers_per_keyword),
+                    answer_params,
                 ).fetchall()
                 answers: list[dict[str, object]] = []
                 for ans in answer_rows:

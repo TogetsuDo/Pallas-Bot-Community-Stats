@@ -90,6 +90,7 @@ class CorpusUsageResponse(BaseModel):
 
 
 HotCorpusPeriod = Literal["day", "week", "month"]
+HotCorpusMode = Literal["pool", "recent"]
 
 
 class HotCorpusAnswer(BaseModel):
@@ -105,6 +106,7 @@ class HotCorpusItem(BaseModel):
 
 
 class CorpusHotResponse(BaseModel):
+    mode: HotCorpusMode
     period: HotCorpusPeriod
     window_sec: int
     as_of: str

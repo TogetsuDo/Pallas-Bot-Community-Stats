@@ -14,6 +14,7 @@ from pallas_community_stats.corpus_models import (
     CorpusHotResponse,
     HotCorpusAnswer,
     HotCorpusItem,
+    HotCorpusMode,
     HotCorpusPeriod,
 )
 from pallas_community_stats.corpus_routes import build_corpus_router
@@ -282,14 +283,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         @app.get("/v1/corpus/hot", response_model=CorpusHotResponse)
         async def corpus_hot(
             response: Response,
+            mode: HotCorpusMode = Query(default="pool"),
             period: HotCorpusPeriod = Query(default="day"),
             limit: int = Query(default=40, ge=5, le=80),
             settings: Settings = Depends(_app_settings),
         ) -> CorpusHotResponse:
-            window_sec = int(HOT_CORPUS_PERIOD_SEC.get(period, 86400))
-            rows = corpus_store.aggregate_hot_keywords(period=period, limit=limit)
+            if mode == "pool":
+                window_sec = 0
+            else:
+                window_sec = int(HOT_CORPUS_PERIOD_SEC.get(period, 86400))
+            rows = corpus_store.aggregate_hot_keywords(mode=mode, period=period, limit=limit)
             response.headers["Cache-Control"] = "public, max-age=120"
             return CorpusHotResponse(
+                mode=mode,
                 period=period,
                 window_sec=window_sec,
                 as_of=monitor_as_of(),

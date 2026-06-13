@@ -119,8 +119,9 @@ app.innerHTML = `
         <p class="section__legend" data-hot-legend>进入视口后加载热词气泡图…</p>
       </div>
       <div class="corpus-hot-shell tech-shell">
-        <div class="corpus-hot__tabs" data-hot-tabs role="tablist" aria-label="热词时间范围">
-          <button type="button" class="corpus-hot__tab corpus-hot__tab--active" data-hot-period="day" role="tab" aria-selected="true">今日</button>
+        <div class="corpus-hot__tabs" data-hot-tabs role="tablist" aria-label="热词统计范围">
+          <button type="button" class="corpus-hot__tab corpus-hot__tab--active" data-hot-period="pool" role="tab" aria-selected="true">高频池</button>
+          <button type="button" class="corpus-hot__tab" data-hot-period="day" role="tab" aria-selected="false">今日</button>
           <button type="button" class="corpus-hot__tab" data-hot-period="week" role="tab" aria-selected="false">本周</button>
           <button type="button" class="corpus-hot__tab" data-hot-period="month" role="tab" aria-selected="false">本月</button>
         </div>
@@ -167,7 +168,7 @@ async function bootstrap(): Promise<void> {
   });
 
   const hotCloud = new CorpusWordCloud(hotSection);
-  hotCloud.observe((period) => fetchCorpusHot(period));
+  hotCloud.observe((tab) => fetchCorpusHot(tab));
 
   window.addEventListener(
     "scroll",

@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import type { CorpusHotData, HotCorpusItem, HotPeriod } from "./api";
+import type { CorpusHotData, HotCorpusItem, HotTab } from "./api";
 import {
   hotBubbleFill,
   hotBubbleFontSize,
@@ -7,7 +7,8 @@ import {
   layoutHotBubbles,
 } from "./hotBubbleLayout";
 
-const PERIOD_LABELS: Record<HotPeriod, string> = {
+const TAB_LABELS: Record<HotTab, string> = {
+  pool: "高频池",
   day: "今日",
   week: "本周",
   month: "本月",
@@ -20,10 +21,10 @@ export class CorpusWordCloud {
   private readonly detailEl: HTMLElement;
   private readonly emptyEl: HTMLElement;
   private readonly legendEl: HTMLElement;
-  private period: HotPeriod = "day";
+  private tab: HotTab = "pool";
   private items: HotCorpusItem[] = [];
   private selectedKeywords: string | null = null;
-  private loadFn: ((period: HotPeriod) => Promise<CorpusHotData>) | null = null;
+  private loadFn: ((tab: HotTab) => Promise<CorpusHotData>) | null = null;
   private busy = false;
   private resizeObserver: ResizeObserver | null = null;
   private renderToken = 0;
@@ -38,7 +39,7 @@ export class CorpusWordCloud {
     this.bindTabs();
   }
 
-  observe(load: (period: HotPeriod) => Promise<CorpusHotData>): void {
+  observe(load: (tab: HotTab) => Promise<CorpusHotData>): void {
     this.loadFn = load;
     const observer = new IntersectionObserver(
       (entries) => {
@@ -54,9 +55,9 @@ export class CorpusWordCloud {
   private bindTabs(): void {
     this.tabsEl.querySelectorAll<HTMLButtonElement>("[data-hot-period]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const period = btn.dataset.hotPeriod as HotPeriod | undefined;
-        if (!period || period === this.period || this.busy) return;
-        this.period = period;
+        const tab = btn.dataset.hotPeriod as HotTab | undefined;
+        if (!tab || tab === this.tab || this.busy) return;
+        this.tab = tab;
         this.selectedKeywords = null;
         this.syncTabs();
         void this.refresh();
@@ -66,7 +67,7 @@ export class CorpusWordCloud {
 
   private syncTabs(): void {
     this.tabsEl.querySelectorAll<HTMLButtonElement>("[data-hot-period]").forEach((btn) => {
-      const active = btn.dataset.hotPeriod === this.period;
+      const active = btn.dataset.hotPeriod === this.tab;
       btn.classList.toggle("corpus-hot__tab--active", active);
       btn.setAttribute("aria-selected", active ? "true" : "false");
     });
@@ -75,11 +76,13 @@ export class CorpusWordCloud {
   private async refresh(): Promise<void> {
     if (!this.loadFn) return;
     this.busy = true;
-    this.legendEl.textContent = `加载${PERIOD_LABELS[this.period]}热词…`;
+    this.legendEl.textContent = `加载${TAB_LABELS[this.tab]}热词…`;
     try {
-      const data = await this.loadFn(this.period);
+      const data = await this.loadFn(this.tab);
       this.items = data.items;
-      this.legendEl.textContent = `${PERIOD_LABELS[this.period]}最热触发词 · 气泡越大越热 · 点击查看代表回复`;
+      const scope =
+        this.tab === "pool" ? "社区高频池" : `${TAB_LABELS[this.tab]}近期活跃`;
+      this.legendEl.textContent = `${scope} · 气泡越大越热 · 点击查看代表回复`;
       this.renderCloud();
       this.renderDetail();
     } catch (err) {
@@ -99,7 +102,10 @@ export class CorpusWordCloud {
     this.cloudEl.innerHTML = "";
     if (!this.items.length) {
       this.emptyEl.hidden = false;
-      this.emptyEl.textContent = "该时段暂无共享语料热词。接入并贡献语料后，这里会展示社区最热触发词。";
+      this.emptyEl.textContent =
+        this.tab === "pool"
+          ? "暂无共享语料高频词。接入并贡献语料后，这里会展示社区累计最热触发词。"
+          : "该时段暂无近期活跃热词。可切换到「高频池」查看累计热度。";
       return;
     }
     this.emptyEl.hidden = true;
@@ -207,7 +213,10 @@ export class CorpusWordCloud {
 
     const meta = document.createElement("p");
     meta.className = "corpus-hot__detail-meta";
-    meta.textContent = `${PERIOD_LABELS[this.period]}热度 ${item.score}`;
+    meta.textContent =
+      this.tab === "pool"
+        ? `累计热度 ${item.score}`
+        : `${TAB_LABELS[this.tab]}热度 ${item.score}`;
 
     titleWrap.append(title, meta);
 

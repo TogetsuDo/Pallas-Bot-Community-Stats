@@ -1,4 +1,6 @@
 export type HotPeriod = "day" | "week" | "month";
+export type HotMode = "pool" | "recent";
+export type HotTab = "pool" | HotPeriod;
 
 export type HotCorpusAnswer = {
   answer_keywords: string;
@@ -13,6 +15,7 @@ export type HotCorpusItem = {
 };
 
 export type CorpusHotData = {
+  mode: HotMode;
   period: HotPeriod;
   window_sec: number;
   as_of: string;
@@ -77,8 +80,14 @@ export async function fetchBubbleRoster(): Promise<RosterBubble> {
   return resp.json() as Promise<RosterBubble>;
 }
 
-export async function fetchCorpusHot(period: HotPeriod = "day", limit = 40): Promise<CorpusHotData> {
-  const params = new URLSearchParams({ period, limit: String(limit) });
+export async function fetchCorpusHot(tab: HotTab = "pool", limit = 40): Promise<CorpusHotData> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (tab === "pool") {
+    params.set("mode", "pool");
+  } else {
+    params.set("mode", "recent");
+    params.set("period", tab);
+  }
   const resp = await fetch(`/v1/corpus/hot?${params}`);
   if (!resp.ok) throw new Error(`corpus hot ${resp.status}`);
   return resp.json() as Promise<CorpusHotData>;

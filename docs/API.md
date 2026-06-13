@@ -377,16 +377,23 @@
 
 ### `GET /v1/corpus/hot`
 
-公开只读：按时间窗口聚合共享池最热触发词及代表回复。无需鉴权；`CORPUS_ENABLED=false` 时路由不可用。
+公开只读：聚合共享池最热触发词及代表回复。无需鉴权；`CORPUS_ENABLED=false` 时路由不可用。
 
-**Query：** `period`（`day` / `week` / `month`，默认 `day`）、`limit`（5–80，默认 40）
+**Query：**
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `mode` | `pool` | `pool`：全量高频池（不按时间过滤）；`recent`：按 `period` 窗口统计近期活跃 |
+| `period` | `day` | `mode=recent` 时生效：`day` / `week` / `month` |
+| `limit` | `40` | 5–80 |
 
 **200**
 
 ```json
 {
+  "mode": "pool",
   "period": "day",
-  "window_sec": 86400,
+  "window_sec": 0,
   "as_of": "2026-06-14T00:00:00Z",
   "items": [
     {
@@ -402,8 +409,10 @@
 
 | 字段 | 说明 |
 | --- | --- |
-| `score` | 窗口内该触发词关联回复的 `count` 合计 |
-| `answers` | 窗口内热度最高的若干代表回复（默认最多 3 条） |
+| `mode` | `pool` 或 `recent` |
+| `window_sec` | `pool` 时为 `0`；`recent` 时为对应窗口秒数 |
+| `score` | 统计范围内该触发词关联回复的 `count` 合计 |
+| `answers` | 热度最高的若干代表回复（默认最多 3 条） |
 
 ### `GET /v1/corpus/context`
 
