@@ -94,6 +94,30 @@ def test_corpus_hot_keywords_by_period(corpus_client: TestClient, monkeypatch) -
     assert hello["answers"][0]["message"] == "早啊"
 
 
+def test_corpus_hot_strips_cq_message(corpus_client: TestClient) -> None:
+    dep = str(uuid.uuid4())
+    token = corpus_client.post("/v1/corpus/enroll", json={"deployment_id": dep}).json()["corpus_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    corpus_client.post(
+        "/v1/corpus/contribute",
+        json={
+            "op": "upsert_answer",
+            "keywords": "早安",
+            "group_id": 0,
+            "answer_keywords": "回礼",
+            "message": "早啊[CQ:face,id=178]呀",
+            "append_on_existing": True,
+        },
+        headers=headers,
+    )
+    hot = corpus_client.get("/v1/corpus/hot", params={"period": "month"}).json()
+    row = next(item for item in hot["items"] if item["keywords"] == "早安")
+    assert row["answers"][0]["message"] == "早啊呀"
+
+    ctx = corpus_client.get("/v1/corpus/context", params={"keywords": "早安"}, headers=headers).json()
+    assert ctx["answers"][0]["messages"] == ["早啊呀"]
+
+
 def test_corpus_contribute_forbidden_when_disabled(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     settings = Settings(

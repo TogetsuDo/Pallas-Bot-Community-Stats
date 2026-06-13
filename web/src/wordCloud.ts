@@ -1,4 +1,11 @@
+import * as d3 from "d3";
 import type { CorpusHotData, HotCorpusItem, HotPeriod } from "./api";
+import {
+  hotBubbleFill,
+  hotBubbleFontSize,
+  hotBubbleLabel,
+  layoutHotBubbles,
+} from "./hotBubbleLayout";
 
 const PERIOD_LABELS: Record<HotPeriod, string> = {
   day: "今日",
@@ -18,11 +25,13 @@ export class CorpusWordCloud {
   private selectedKeywords: string | null = null;
   private loadFn: ((period: HotPeriod) => Promise<CorpusHotData>) | null = null;
   private busy = false;
+  private resizeObserver: ResizeObserver | null = null;
+  private renderToken = 0;
 
   constructor(section: HTMLElement) {
     this.section = section;
     this.tabsEl = section.querySelector<HTMLElement>("[data-hot-tabs]")!;
-    this.cloudEl = section.querySelector<HTMLElement>("[data-hot-cloud]")!;
+    this.cloudEl = section.querySelector<HTMLElement>("[data-hot-canvas]")!;
     this.detailEl = section.querySelector<HTMLElement>("[data-hot-detail]")!;
     this.emptyEl = section.querySelector<HTMLElement>("[data-hot-empty]")!;
     this.legendEl = section.querySelector<HTMLElement>("[data-hot-legend]")!;
@@ -70,7 +79,7 @@ export class CorpusWordCloud {
     try {
       const data = await this.loadFn(this.period);
       this.items = data.items;
-      this.legendEl.textContent = `${PERIOD_LABELS[this.period]}最热触发词 · 点击词条查看代表回复`;
+      this.legendEl.textContent = `${PERIOD_LABELS[this.period]}最热触发词 · 气泡越大越热 · 点击查看代表回复`;
       this.renderCloud();
       this.renderDetail();
     } catch (err) {
@@ -86,6 +95,7 @@ export class CorpusWordCloud {
   }
 
   private renderCloud(): void {
+    const token = ++this.renderToken;
     this.cloudEl.innerHTML = "";
     if (!this.items.length) {
       this.emptyEl.hidden = false;
@@ -93,25 +103,70 @@ export class CorpusWordCloud {
       return;
     }
     this.emptyEl.hidden = true;
-    const maxScore = Math.max(...this.items.map((item) => item.score), 1);
-    this.items.forEach((item) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "corpus-hot__word";
-      if (item.keywords === this.selectedKeywords) {
-        btn.classList.add("corpus-hot__word--active");
-      }
-      const ratio = 0.35 + (item.score / maxScore) * 0.65;
-      btn.style.fontSize = `${Math.max(0.78, Math.min(1.65, 0.78 + ratio * 0.9))}rem`;
-      btn.textContent = item.keywords;
-      btn.title = `热度 ${item.score}`;
-      btn.addEventListener("click", () => {
-        this.selectedKeywords = this.selectedKeywords === item.keywords ? null : item.keywords;
+
+    const width = this.cloudEl.clientWidth || 960;
+    const { nodes, height } = layoutHotBubbles(this.items, width);
+
+    const svg = d3
+      .select(this.cloudEl)
+      .append("svg")
+      .attr("class", "hot-bubble-svg")
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("width", "100%")
+      .attr("height", height)
+      .attr("role", "img")
+      .attr("aria-label", "共享语料热词气泡图");
+
+    const node = svg
+      .selectAll<SVGGElement, (typeof nodes)[number]>("g.hot-bubble-node")
+      .data(nodes)
+      .join("g")
+      .attr("class", (d) => {
+        const active = d.item.keywords === this.selectedKeywords ? " hot-bubble-node--active" : "";
+        return `hot-bubble-node${active}`;
+      })
+      .attr("transform", (d) => `translate(${d.x},${d.y})`)
+      .style("--hot-delay", (_, i) => `${Math.min(i * 35, 640)}ms`)
+      .attr("role", "button")
+      .attr("tabindex", 0)
+      .attr("aria-pressed", (d) => (d.item.keywords === this.selectedKeywords ? "true" : "false"))
+      .on("click", (_, d) => {
+        this.selectedKeywords = this.selectedKeywords === d.item.keywords ? null : d.item.keywords;
+        this.renderCloud();
+        this.renderDetail();
+      })
+      .on("keydown", (event, d) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        this.selectedKeywords = this.selectedKeywords === d.item.keywords ? null : d.item.keywords;
         this.renderCloud();
         this.renderDetail();
       });
-      this.cloudEl.appendChild(btn);
-    });
+
+    node
+      .append("circle")
+      .attr("r", (d) => d.r)
+      .attr("class", "hot-bubble-node__disk")
+      .attr("fill", (d) => hotBubbleFill(d.scoreRatio));
+
+    node
+      .append("text")
+      .attr("class", "hot-bubble-node__label")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "central")
+      .attr("font-size", (d) => hotBubbleFontSize(d.r))
+      .text((d) => hotBubbleLabel(d.item.keywords, d.r));
+
+    node.append("title").text((d) => `${d.item.keywords}\n热度 ${d.item.score}`);
+
+    if (token !== this.renderToken) return;
+
+    if (!this.resizeObserver) {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (this.items.length) this.renderCloud();
+      });
+      this.resizeObserver.observe(this.cloudEl);
+    }
   }
 
   private renderDetail(): void {

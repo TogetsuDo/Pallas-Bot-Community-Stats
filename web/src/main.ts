@@ -49,7 +49,7 @@ app.innerHTML = `
     <section id="wordcloud" class="section section--hot">
       <div class="section__intro">
         <h2>共享语料热词</h2>
-        <p class="section__legend" data-hot-legend>进入视口后加载热词…</p>
+        <p class="section__legend" data-hot-legend>进入视口后加载热词气泡图…</p>
       </div>
       <div class="corpus-hot-shell">
         <div class="corpus-hot__tabs" data-hot-tabs role="tablist" aria-label="热词时间范围">
@@ -58,7 +58,7 @@ app.innerHTML = `
           <button type="button" class="corpus-hot__tab" data-hot-period="month" role="tab" aria-selected="false">本月</button>
         </div>
         <div data-hot-empty class="corpus-hot__empty" hidden></div>
-        <div data-hot-cloud class="corpus-hot__cloud" aria-label="热词云"></div>
+        <div data-hot-canvas class="corpus-hot__canvas" aria-label="热词气泡图"></div>
         <div data-hot-detail class="corpus-hot__detail" aria-live="polite"></div>
       </div>
       <a class="scroll-hint" href="#overview">向下查看社区概览 ↓</a>

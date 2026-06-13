@@ -14,6 +14,7 @@ from pallas_community_stats.corpus_util import (
     keywords_hash,
     loads_messages,
     new_corpus_token,
+    plain_message_text,
 )
 
 
@@ -162,11 +163,11 @@ class CorpusStore:
             ).fetchall()
         answers = [
             {
-                "keywords": str(r["answer_keywords"]),
+                "keywords": plain_message_text(str(r["answer_keywords"])),
                 "group_id": int(r["group_id"]),
                 "count": int(r["count"]),
                 "time": int(r["time"]),
-                "messages": loads_messages(r["messages_json"]),
+                "messages": [t for m in loads_messages(r["messages_json"]) if (t := plain_message_text(str(m)))],
             }
             for r in answer_rows
         ]
@@ -267,6 +268,8 @@ class CorpusStore:
         preset_count: int | None = None,
         preset_messages: list[str] | None = None,
     ) -> None:
+        message = plain_message_text(message or "") or None
+        preset_messages = [plain_message_text(m) for m in (preset_messages or []) if plain_message_text(m)]
         row = conn.execute(
             """
             SELECT count, time, messages_json FROM corpus_answers
@@ -486,12 +489,12 @@ class CorpusStore:
                     messages = loads_messages(ans["messages_json"])
                     message = ""
                     for raw in messages:
-                        text = str(raw).strip()
+                        text = plain_message_text(str(raw))
                         if text:
                             message = text
                             break
                     if not message:
-                        message = str(ans["answer_keywords"] or "").strip()
+                        message = plain_message_text(str(ans["answer_keywords"] or ""))
                     if len(message) > 120:
                         message = message[:117] + "…"
                     answers.append({

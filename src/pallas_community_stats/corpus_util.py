@@ -2,8 +2,20 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import secrets
 from typing import Any
+
+_CQ_SEGMENT_RE = re.compile(r"\[CQ:[^\]]*]", re.IGNORECASE)
+
+
+def plain_message_text(text: str) -> str:
+    """去掉 OneBot CQ 段，仅保留可读正文。"""
+    raw = (text or "").replace("\x00", "")
+    if not raw:
+        return ""
+    cleaned = _CQ_SEGMENT_RE.sub("", raw)
+    return " ".join(cleaned.split()).strip()
 
 
 def keywords_hash(keywords: str) -> str:

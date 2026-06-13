@@ -606,32 +606,57 @@ a {
   font-weight: 600;
 }
 
-.corpus-hot__cloud {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 10px 14px;
-  min-height: 120px;
-  padding: 8px 4px 12px;
+.corpus-hot__canvas {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
 }
 
-.corpus-hot__word {
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font-weight: 600;
-  line-height: 1.25;
-  padding: 4px 6px;
-  border-radius: 8px;
+.hot-bubble-svg {
+  display: block;
+  overflow: visible;
+}
+
+.hot-bubble-node {
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  outline: none;
+  animation: hot-bubble-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--hot-delay, 0ms);
 }
 
-.corpus-hot__word:hover,
-.corpus-hot__word--active {
-  background: var(--accent-soft);
-  color: var(--accent);
+.hot-bubble-node__disk {
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1.5;
+  transition: stroke-width 0.18s ease, filter 0.18s ease;
+}
+
+.hot-bubble-node:hover .hot-bubble-node__disk,
+.hot-bubble-node--active .hot-bubble-node__disk {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  filter: brightness(1.04);
+}
+
+.hot-bubble-node__label {
+  fill: #2a1d12;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.hot-bubble-node:focus-visible .hot-bubble-node__disk {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+@keyframes hot-bubble-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .corpus-hot__detail {
