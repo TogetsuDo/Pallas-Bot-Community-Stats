@@ -825,6 +825,24 @@ html[data-theme="light"] .tech-shell::before {
   filter: brightness(1.04);
 }
 
+.bot-list__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.bot-list__action--ghost {
+  background: #f4f7fb;
+  color: #2f3b4a;
+  border: 1px solid rgba(15, 20, 25, 0.1);
+  box-shadow: none;
+}
+
+.bot-list__action--ghost:hover {
+  background: #e9eef5;
+  filter: none;
+}
+
 .bot-list__avatar {
   width: 40px;
   height: 40px;
@@ -1015,10 +1033,17 @@ html[data-theme="light"] .tech-shell::before {
   line-height: 1.4;
 }
 
+.bubble-popover__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .bubble-popover__add {
   display: block;
   width: 100%;
-  margin-top: 10px;
+  margin-top: 0;
   min-height: 40px;
   padding: 8px 12px;
   border: none;
@@ -1035,6 +1060,28 @@ html[data-theme="light"] .tech-shell::before {
 }
 
 .bubble-popover__add:active {
+  transform: translateY(1px);
+}
+
+.bubble-popover__copy {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid rgba(15, 20, 25, 0.12);
+  border-radius: 10px;
+  background: #f4f7fb;
+  color: #2f3b4a;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bubble-popover__copy:hover {
+  background: #e9eef5;
+}
+
+.bubble-popover__copy:active {
   transform: translateY(1px);
 }
 

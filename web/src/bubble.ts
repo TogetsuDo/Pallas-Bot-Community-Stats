@@ -1,6 +1,6 @@
 import type { BubbleBot } from "./api";
 import { importD3 } from "./d3Loader";
-import { openQQProfile } from "./qqProfile";
+import { copyQQNumber, openQQProfile } from "./qqProfile";
 
 type BubbleDatum = {
   bot?: BubbleBot;
@@ -273,6 +273,9 @@ export class BubbleWall {
 
     const actions: HTMLElement[] = [name, meta];
     if (bot.qq) {
+      const actionRow = document.createElement("div");
+      actionRow.className = "bubble-popover__actions";
+
       const addBtn = document.createElement("button");
       addBtn.type = "button";
       addBtn.className = "bubble-popover__add";
@@ -281,7 +284,18 @@ export class BubbleWall {
         event.stopPropagation();
         void openQQProfile(bot.qq!);
       });
-      actions.push(addBtn);
+
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "bubble-popover__copy";
+      copyBtn.textContent = "复制 QQ 号";
+      copyBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void copyQQNumber(bot.qq!);
+      });
+
+      actionRow.append(addBtn, copyBtn);
+      actions.push(actionRow);
     }
 
     popover.append(...actions);

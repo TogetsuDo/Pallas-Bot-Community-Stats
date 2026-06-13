@@ -1,5 +1,5 @@
 import type { BubbleBot } from "./api";
-import { openQQProfile } from "./qqProfile";
+import { copyQQNumber, openQQProfile } from "./qqProfile";
 
 type BotListFilter = "all" | "online" | "offline";
 
@@ -90,7 +90,10 @@ export class BotListPanel {
           : `牛牛未公开QQ · ${status}`;
         const action =
           bot.qq
-            ? `<button type="button" class="bot-list__action" data-bot-qq="${bot.qq}">添加好友</button>`
+            ? `<div class="bot-list__actions">
+                <button type="button" class="bot-list__action" data-bot-qq="${bot.qq}">添加好友</button>
+                <button type="button" class="bot-list__action bot-list__action--ghost" data-bot-copy-qq="${bot.qq}">复制</button>
+              </div>`
             : "";
 
         return `
@@ -107,11 +110,18 @@ export class BotListPanel {
       })
       .join("");
 
-    this.listHost.querySelectorAll<HTMLButtonElement>(".bot-list__action").forEach((btn) => {
+    this.listHost.querySelectorAll<HTMLButtonElement>("[data-bot-qq]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const qq = Number(btn.dataset.botQq);
         if (!qq) return;
         void openQQProfile(qq);
+      });
+    });
+    this.listHost.querySelectorAll<HTMLButtonElement>("[data-bot-copy-qq]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const qq = Number(btn.dataset.botCopyQq);
+        if (!qq) return;
+        void copyQQNumber(qq);
       });
     });
   }
