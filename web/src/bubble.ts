@@ -119,6 +119,8 @@ export class BubbleWall {
   private sphereInteractionBound = false;
   private popoverEl: HTMLElement | null = null;
   private docClickBound: ((event: MouseEvent) => void) | null = null;
+  private flatFocusMorphFrom: string | null = null;
+  private flatFocusMorphT = 1;
 
   constructor(section: HTMLElement, options?: { onBotsChange?: (bots: BubbleBot[]) => void }) {
     this.section = section;
@@ -130,6 +132,7 @@ export class BubbleWall {
     this.bindViewToggle();
     this.syncViewToggleUi();
     this.bindSphereInteraction();
+    this.bindDocDismiss();
   }
 
   observe(load: () => Promise<BubbleBot[]>): void {
@@ -184,9 +187,29 @@ export class BubbleWall {
     this.endSphereDrag();
     this.hidePopover();
     this.focusBlend = 0;
+    this.resetFlatFocusMorph();
     this.viewRotX = IDLE_ROT_X;
     this.viewRotY = IDLE_ROT_Y;
     this.canvasHost.classList.remove("bubble-canvas--focused", "bubble-canvas--dragging");
+  }
+
+  private resetFlatFocusMorph(): void {
+    this.flatFocusMorphFrom = null;
+    this.flatFocusMorphT = 1;
+  }
+
+  private bindDocDismiss(): void {
+    if (this.docClickBound) return;
+    this.docClickBound = (event: MouseEvent) => {
+      if (!this.activeBotKey) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (this.popoverEl?.contains(target)) return;
+      if (target instanceof Element && target.closest(".bubble-node")) return;
+      if (target instanceof Element && target.closest("[data-bubble-view-toggle]")) return;
+      void importD3().then((d3) => this.clearFocus(d3));
+    };
+    document.addEventListener("click", this.docClickBound);
   }
 
   private bindSphereInteraction(): void {
@@ -218,6 +241,7 @@ export class BubbleWall {
     this.dragAnchorY = event.clientY;
     this.dragStartRotX = this.viewRotX;
     this.dragStartRotY = this.viewRotY;
+    event.preventDefault();
   };
 
   private onSpherePointerMove = (event: PointerEvent): void => {
@@ -237,7 +261,7 @@ export class BubbleWall {
 
     const sens = event.pointerType === "touch" ? DRAG_SENS_TOUCH : DRAG_SENS_MOUSE;
     this.viewRotY = this.dragStartRotY + dx * sens;
-    this.viewRotX = clampRotX(this.dragStartRotX - dy * sens);
+    this.viewRotX = this.dragStartRotX - dy * sens;
     void importD3().then((d3) => this.paintSphereScene(d3));
     event.preventDefault();
   };
@@ -340,7 +364,7 @@ export class BubbleWall {
       this.layoutMode === "sphere"
         ? layoutSphereNodes(bots, this.sphereRadius, isNarrow)
         : layoutFlatNodes(d3, bots, width, baseHeight, isNarrow);
-    const links = this.layoutMode === "sphere" ? buildSphereLinks(nodes) : [];
+    const links = buildRosterLinks(nodes, this.layoutMode);
     this.neighborMap = buildNeighborMap(links);
     this.layoutNodes = nodes;
 
@@ -449,10 +473,6 @@ export class BubbleWall {
     this.canvasHost.classList.toggle("bubble-canvas--focused", Boolean(this.activeBotKey));
 
     if (this.activeBotKey && this.layoutMode === "sphere") {
-      const focusNode = this.layoutNodes.find((node) => node.bot.bot_key === this.activeBotKey)!;
-      const focusAngles = focusRotationForNode(focusNode, this.viewRotY);
-      this.viewRotX = focusAngles.rotX;
-      this.viewRotY = focusAngles.rotY;
       this.focusBlend = 1;
     } else if (!this.activeBotKey && this.focusBlend < 0.01) {
       this.viewRotX = IDLE_ROT_X;
@@ -514,6 +534,7 @@ export class BubbleWall {
 
     this.hidePopover();
     this.popoverBotKey = null;
+    const previousKey = this.activeBotKey;
     this.activeBotKey = botKey;
     nodeSelection
       .classed("bubble-node--active", (node) => node.bot.bot_key === botKey)
@@ -525,6 +546,11 @@ export class BubbleWall {
       if (!focusNode) return;
       const angles = focusRotationForNode(focusNode, this.viewRotY);
       await this.animateSphereView(d3, { rotX: angles.rotX, rotY: angles.rotY, focusBlend: 1 });
+      return;
+    }
+
+    if (previousKey && previousKey !== botKey && this.focusBlend > 0.01) {
+      await this.animateFlatFocusSwitch(d3, previousKey, botKey);
       return;
     }
 
@@ -554,6 +580,7 @@ export class BubbleWall {
 
   private animateFocusBlend(d3: D3Module, target: number): Promise<void> {
     this.cancelAnimation();
+    this.resetFlatFocusMorph();
     this.canvasHost.classList.add("bubble-canvas--animating");
     const from = this.focusBlend;
     return new Promise((resolve) => {
@@ -569,6 +596,35 @@ export class BubbleWall {
         }
         this.animFrame = null;
         this.canvasHost.classList.remove("bubble-canvas--animating");
+        resolve();
+      };
+      this.animFrame = requestAnimationFrame(step);
+    });
+  }
+
+  private animateFlatFocusSwitch(d3: D3Module, fromKey: string, toKey: string): Promise<void> {
+    this.cancelAnimation();
+    this.canvasHost.classList.add("bubble-canvas--animating");
+    this.flatFocusMorphFrom = fromKey;
+    this.flatFocusMorphT = 0;
+    this.focusBlend = 1;
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const step = (now: number) => {
+        const raw = Math.min(1, (now - start) / FOCUS_ANIM_MS);
+        const t = easeCubicInOut(raw);
+        this.flatFocusMorphT = t;
+        this.paintFrame(d3);
+        if (raw < 1) {
+          this.animFrame = requestAnimationFrame(step);
+          return;
+        }
+        this.flatFocusMorphFrom = null;
+        this.flatFocusMorphT = 1;
+        this.focusBlend = 1;
+        this.animFrame = null;
+        this.canvasHost.classList.remove("bubble-canvas--animating");
+        this.paintFrame(d3);
         resolve();
       };
       this.animFrame = requestAnimationFrame(step);
@@ -591,7 +647,7 @@ export class BubbleWall {
       const step = (now: number) => {
         const raw = Math.min(1, (now - start) / FOCUS_ANIM_MS);
         const t = easeCubicInOut(raw);
-        this.viewRotX = from.rotX + (target.rotX - from.rotX) * t;
+        this.viewRotX = lerpAngle(from.rotX, target.rotX, t);
         this.viewRotY = lerpAngle(from.rotY, target.rotY, t);
         this.focusBlend = from.focusBlend + (target.focusBlend - from.focusBlend) * t;
         this.paintFrame(d3);
@@ -627,41 +683,117 @@ export class BubbleWall {
     const cy = height / 2;
     const focusKey = this.activeBotKey;
     const medianR = d3.median(this.layoutNodes, (node) => node.r) ?? 30;
+    const focusNode = focusKey ? this.layoutNodes.find((node) => node.id === focusKey) : undefined;
+    const morphFromKey = this.flatFocusMorphFrom;
+    const morphFromNode =
+      morphFromKey && morphFromKey !== focusKey
+        ? this.layoutNodes.find((node) => node.id === morphFromKey)
+        : undefined;
+    const morphing = Boolean(focusNode && morphFromNode && this.flatFocusMorphT < 1);
+    const focusing = Boolean(focusNode && (this.focusBlend > 0 || morphing));
+    const linkBlend = morphing ? Math.max(this.focusBlend, this.flatFocusMorphT) : this.focusBlend;
+    const showFlatLinks = focusing && linkBlend > 0.04;
+    const focusNeighbors = focusKey ? this.neighborMap.get(focusKey) : undefined;
+    const highlightLinks = Boolean(focusKey && focusNeighbors && linkBlend > 0.3);
 
-    this.scene.linkLayerSel.style("display", "none");
+    this.scene.linkLayerSel.style("display", showFlatLinks ? "" : "none");
     this.scene.meshLayerSel?.style("display", "none");
 
+    const nodeVisual = (node: LayoutNode): FlatNodePaint =>
+      resolveFlatNodeVisual(
+        node,
+        focusKey,
+        focusNode,
+        this.focusBlend,
+        medianR,
+        morphFromKey,
+        morphFromNode,
+        focusNode,
+        this.flatFocusMorphT,
+      );
+
     this.scene.nodeSel
-      .attr("transform", (node) => `translate(${node.x},${node.y})`)
-      .style("opacity", 1)
-      .attr("class", (node) => nodeClassName(node, focusKey, this.focusBlend, false))
+      .attr("transform", (node) => {
+        const paint = nodeVisual(node);
+        return `translate(${paint.x},${paint.y})`;
+      })
+      .style("opacity", (node) => nodeVisual(node).opacity)
+      .attr("class", (node) => {
+        const classFocusKey =
+          morphing && this.flatFocusMorphT < 0.5 ? morphFromKey : focusKey;
+        const classFocusBlend = morphing ? 1 : this.focusBlend;
+        return nodeClassName(node, classFocusKey ?? null, classFocusBlend, false);
+      })
       .each((node, index, groups) => {
         const group = d3.select(groups[index]);
-        let bodyScale = 1;
-        if (focusKey && this.focusBlend > 0) {
-          if (node.id === focusKey) {
-            const boost = node.r < medianR ? 1.38 : 1.16;
-            bodyScale = 1 + (boost - 1) * this.focusBlend;
-          } else if (node.r < medianR * 0.92) {
-            bodyScale = 1 - 0.1 * this.focusBlend;
-          } else {
-            bodyScale = 1 - 0.04 * this.focusBlend;
-          }
-        }
-        updateNodeGraphics(d3, group, node, bodyScale, this.scene!.clipIds, this.canvasHost);
+        updateNodeGraphics(
+          d3,
+          group,
+          node,
+          nodeVisual(node).bodyScale,
+          this.scene!.clipIds,
+          this.canvasHost,
+        );
       });
 
-    if (focusKey && this.focusBlend > 0) {
-      const focusNode = this.layoutNodes.find((node) => node.id === focusKey);
-      if (focusNode) {
-        const panX = (cx - focusNode.x) * this.focusBlend;
-        const panY = (cy - focusNode.y) * this.focusBlend;
-        const zoom = 1 + 0.1 * this.focusBlend;
-        this.scene.stageSel.attr(
-          "transform",
-          `translate(${cx},${cy}) scale(${zoom}) translate(${-cx + panX},${-cy + panY})`,
-        );
-      }
+    if (showFlatLinks) {
+      this.scene.linkSel
+        .attr("class", (link) => {
+          const online =
+            link.source.bot.online && link.target.bot.online ? " bubble-link--online" : "";
+          const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
+          const highlight = highlightLinks && connected ? " bubble-link--highlight" : "";
+          return `bubble-link${online}${highlight}`;
+        })
+        .attr("x1", (link) => {
+          const sourcePaint = nodeVisual(link.source);
+          const targetPaint = nodeVisual(link.target);
+          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).x1;
+        })
+        .attr("y1", (link) => {
+          const sourcePaint = nodeVisual(link.source);
+          const targetPaint = nodeVisual(link.target);
+          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).y1;
+        })
+        .attr("x2", (link) => {
+          const sourcePaint = nodeVisual(link.source);
+          const targetPaint = nodeVisual(link.target);
+          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).x2;
+        })
+        .attr("y2", (link) => {
+          const sourcePaint = nodeVisual(link.source);
+          const targetPaint = nodeVisual(link.target);
+          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).y2;
+        })
+        .style("stroke-opacity", (link) => {
+          const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
+          if (highlightLinks && connected) {
+            return Math.min(0.72, 0.22 + 0.46 * linkBlend);
+          }
+          return 0.08 + 0.14 * linkBlend;
+        })
+        .attr("stroke-width", (link) => {
+          const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
+          return connected && highlightLinks ? 1.15 : 0.85;
+        });
+    }
+
+    if (morphing && morphFromNode && focusNode) {
+      const fromStage = flatStageMetrics(morphFromNode, 1, cx, cy);
+      const toStage = flatStageMetrics(focusNode, 1, cx, cy);
+      const t = this.flatFocusMorphT;
+      this.scene.stageSel.attr(
+        "transform",
+        flatStageTransform({
+          cx,
+          cy,
+          panX: fromStage.panX + (toStage.panX - fromStage.panX) * t,
+          panY: fromStage.panY + (toStage.panY - fromStage.panY) * t,
+          zoom: fromStage.zoom + (toStage.zoom - fromStage.zoom) * t,
+        }),
+      );
+    } else if (focusing && focusNode) {
+      this.scene.stageSel.attr("transform", flatStageTransform(flatStageMetrics(focusNode, this.focusBlend, cx, cy)));
     } else {
       this.scene.stageSel.attr("transform", null);
     }
@@ -673,7 +805,7 @@ export class BubbleWall {
     const { width, height } = this.lastViewport;
     const cx = width / 2;
     const cy = height / 2;
-    const focal = Math.max(width, height) * 1.35;
+    const focal = Math.max(width, height) * 2.45;
     const focusKey = this.activeBotKey;
     const focusNeighbors = focusKey ? this.neighborMap.get(focusKey) : undefined;
     const showNeighbors = Boolean(focusKey && focusNeighbors && this.focusBlend > 0.35);
@@ -685,7 +817,7 @@ export class BubbleWall {
     }
 
     const projectWorld = (point: Vec3): Projected => {
-      const rotated = rotateX(rotateY(point, this.viewRotY), this.viewRotX);
+      const rotated = rotateY(rotateX(point, this.viewRotX), this.viewRotY);
       return project(rotated, focal, cx, cy, this.sphereRadius);
     };
 
@@ -842,18 +974,6 @@ export class BubbleWall {
     document.body.appendChild(popover);
     this.popoverEl = popover;
     requestAnimationFrame(() => this.positionPopover(nodeEl, popover));
-
-    if (!this.docClickBound) {
-      this.docClickBound = (event: MouseEvent) => {
-        const target = event.target;
-        if (!(target instanceof Node)) return;
-        if (this.popoverEl?.contains(target)) return;
-        if (target instanceof Element && target.closest(".bubble-node")) return;
-        if (target instanceof Element && target.closest("[data-bubble-view-toggle]")) return;
-        void importD3().then((d3) => this.clearFocus(d3));
-      };
-      document.addEventListener("click", this.docClickBound);
-    }
   }
 
   private positionPopover(nodeEl: SVGGElement, popover: HTMLElement): void {
@@ -896,6 +1016,128 @@ export class BubbleWall {
   }
 }
 
+type FlatNodePaint = {
+  x: number;
+  y: number;
+  opacity: number;
+  bodyScale: number;
+};
+
+type FlatStageMetrics = {
+  cx: number;
+  cy: number;
+  panX: number;
+  panY: number;
+  zoom: number;
+};
+
+function flatNodePaint(
+  node: LayoutNode,
+  focusNode: LayoutNode,
+  focusKey: string,
+  focusBlend: number,
+  medianR: number,
+): FlatNodePaint {
+  if (focusBlend <= 0) {
+    return { x: node.x, y: node.y, opacity: 1, bodyScale: 1 };
+  }
+  if (node.id === focusKey) {
+    const boost = node.r < medianR ? 1.62 : 1.34;
+    return {
+      x: node.x,
+      y: node.y,
+      opacity: 1,
+      bodyScale: 1 + (boost - 1) * focusBlend,
+    };
+  }
+  const dx = node.x - focusNode.x;
+  const dy = node.y - focusNode.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const pushBase = Math.max(36, node.r * 1.35 + 24);
+  const push = pushBase * focusBlend;
+  const fade = node.r < medianR * 0.92 ? 0.42 : 0.58;
+  return {
+    x: node.x + (dx / dist) * push,
+    y: node.y + (dy / dist) * push,
+    opacity: 1 - (1 - fade) * focusBlend,
+    bodyScale: node.r < medianR * 0.92 ? 1 - 0.16 * focusBlend : 1 - 0.08 * focusBlend,
+  };
+}
+
+function lerpFlatNodePaint(from: FlatNodePaint, to: FlatNodePaint, t: number): FlatNodePaint {
+  return {
+    x: from.x + (to.x - from.x) * t,
+    y: from.y + (to.y - from.y) * t,
+    opacity: from.opacity + (to.opacity - from.opacity) * t,
+    bodyScale: from.bodyScale + (to.bodyScale - from.bodyScale) * t,
+  };
+}
+
+function flatStageMetrics(
+  focusNode: LayoutNode,
+  focusBlend: number,
+  cx: number,
+  cy: number,
+): FlatStageMetrics {
+  return {
+    cx,
+    cy,
+    panX: (cx - focusNode.x) * focusBlend,
+    panY: (cy - focusNode.y) * focusBlend,
+    zoom: 1 + 0.18 * focusBlend,
+  };
+}
+
+function flatStageTransform(metrics: FlatStageMetrics): string {
+  const { cx, cy, panX, panY, zoom } = metrics;
+  return `translate(${cx},${cy}) scale(${zoom}) translate(${-cx + panX},${-cy + panY})`;
+}
+
+function resolveFlatNodeVisual(
+  node: LayoutNode,
+  focusKey: string | null,
+  focusNode: LayoutNode | undefined,
+  focusBlend: number,
+  medianR: number,
+  morphFromKey: string | null,
+  morphFromNode: LayoutNode | undefined,
+  morphToNode: LayoutNode | undefined,
+  morphT: number,
+): FlatNodePaint {
+  if (morphFromKey && morphFromNode && morphToNode && focusKey && morphFromKey !== focusKey && morphT < 1) {
+    const from = flatNodePaint(node, morphFromNode, morphFromKey, 1, medianR);
+    const to = flatNodePaint(node, morphToNode, focusKey, 1, medianR);
+    return lerpFlatNodePaint(from, to, morphT);
+  }
+  if (focusNode && focusKey && focusBlend > 0) {
+    return flatNodePaint(node, focusNode, focusKey, focusBlend, medianR);
+  }
+  return { x: node.x, y: node.y, opacity: 1, bodyScale: 1 };
+}
+
+function flatLinkEndpoint(
+  source: LayoutNode,
+  target: LayoutNode,
+  sourcePaint: FlatNodePaint,
+  targetPaint: FlatNodePaint,
+): { x1: number; y1: number; x2: number; y2: number } {
+  const fromR = Math.max(4, source.r * sourcePaint.bodyScale - 2);
+  const toR = Math.max(4, target.r * targetPaint.bodyScale - 2);
+  const dx = targetPaint.x - sourcePaint.x;
+  const dy = targetPaint.y - sourcePaint.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  return {
+    x1: sourcePaint.x + (dx / dist) * fromR,
+    y1: sourcePaint.y + (dy / dist) * fromR,
+    x2: targetPaint.x - (dx / dist) * toR,
+    y2: targetPaint.y - (dy / dist) * toR,
+  };
+}
+
+function flatLayoutDistance(a: LayoutNode, b: LayoutNode): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 function nodeClassName(
   node: LayoutNode,
   focusKey: string | null,
@@ -915,10 +1157,6 @@ function nodeClassName(
       ? " bubble-node--hover-neighbor"
       : "";
   return `bubble-node${depth}${online}${clickable}${active}${primary}${neighborLinked}`;
-}
-
-function clampRotX(value: number): number {
-  return Math.max(-0.35, Math.min(1.45, value));
 }
 
 function buildNeighborMap(links: SimLink[]): Map<string, Set<string>> {
@@ -957,9 +1195,14 @@ function appendNodeBodies(
     const bot = d.bot;
     const r = d.r - avatarInset;
     if (bot.avatar_url) {
+      g.append("circle")
+        .attr("class", "bubble-node__avatar-bg")
+        .attr("r", r)
+        .attr("fill", "var(--bubble-avatar-fill, #1a2433)");
       g.append("image")
         .attr("class", "bubble-node__avatar")
         .attr("href", bot.avatar_url)
+        .attr("preserveAspectRatio", "xMidYMid slice")
         .attr("width", Math.max(0, r * 2))
         .attr("height", Math.max(0, r * 2))
         .attr("x", -r)
@@ -1005,6 +1248,10 @@ function updateNodeGraphics(
   const avatar = group.select<SVGImageElement>(".bubble-node__avatar");
   if (!avatar.empty()) {
     avatar.attr("width", avatarR * 2).attr("height", avatarR * 2).attr("x", -avatarR).attr("y", -avatarR);
+  }
+  const avatarBg = group.select(".bubble-node__avatar-bg");
+  if (!avatarBg.empty()) {
+    avatarBg.attr("r", avatarR);
   }
   const fallback = group.select(".bubble-node__avatar-fallback");
   if (!fallback.empty()) {
@@ -1114,29 +1361,36 @@ function rotateX(v: Vec3, angle: number): Vec3 {
 }
 
 function project(v: Vec3, focal: number, cx: number, cy: number, sphereRadius: number): Projected {
-  const depth = focal + v.z;
-  const scale = focal / depth;
+  const depth = Math.max(focal * 0.12, focal - v.z);
+  const layoutScale = focal / depth;
   const normalized = Math.min(1, Math.max(0, (v.z / sphereRadius + 1) / 2));
+  const bodyScale = 0.84 + 0.2 * normalized;
   const opacity = 0.12 + 0.88 * normalized ** 1.75;
   let depthClass: Projected["depthClass"] = "mid";
   if (normalized >= 0.66) depthClass = "near";
   else if (normalized <= 0.42) depthClass = "far";
   return {
-    x: cx + v.x * scale,
-    y: cy + v.y * scale,
+    x: cx + v.x * layoutScale,
+    y: cy + v.y * layoutScale,
     z: v.z,
-    scale,
+    scale: bodyScale,
     opacity,
     depthClass,
   };
 }
 
 function focusRotationForNode(node: LayoutNode, viewRotY = 0): { rotX: number; rotY: number } {
-  const planar = Math.hypot(node.wx, node.wz);
-  const baseRotY = Math.atan2(-node.wx, node.wz);
+  const { wx, wy, wz } = node;
+  const rotX = Math.hypot(wy, wz) > 1e-6 ? Math.atan2(wy, wz) : 0;
+  const sinX = Math.sin(rotX);
+  const cosX = Math.cos(rotX);
+  const wx1 = wx;
+  const wz1 = wy * sinX + wz * cosX;
+  const baseRotY =
+    Math.abs(wx1) > 1e-6 || Math.abs(wz1) > 1e-6 ? Math.atan2(-wx1, wz1) : viewRotY;
   return {
     rotY: nearestAngle(viewRotY, baseRotY),
-    rotX: Math.atan2(node.wy, planar || 1),
+    rotX,
   };
 }
 
@@ -1208,7 +1462,8 @@ function sphereAngularDistance(a: LayoutNode, b: LayoutNode): number {
   return Math.acos(Math.min(1, Math.max(-1, dot)));
 }
 
-function buildSphereLinks(nodes: LayoutNode[]): SimLink[] {
+function buildRosterLinks(nodes: LayoutNode[], mode: LayoutMode): SimLink[] {
+  const distance = mode === "sphere" ? sphereAngularDistance : flatLayoutDistance;
   const links: SimLink[] = [];
   const seen = new Set<string>();
 
@@ -1234,8 +1489,8 @@ function buildSphereLinks(nodes: LayoutNode[]): SimLink[] {
     group.forEach((source) => {
       const nearest = group
         .filter((node) => node !== source)
-        .map((node) => ({ node, angle: sphereAngularDistance(source, node) }))
-        .sort((a, b) => a.angle - b.angle)
+        .map((node) => ({ node, dist: distance(source, node) }))
+        .sort((a, b) => a.dist - b.dist)
         .slice(0, neighborCount);
       nearest.forEach(({ node }) => add(source, node));
     });

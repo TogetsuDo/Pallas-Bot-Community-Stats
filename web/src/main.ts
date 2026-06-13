@@ -72,14 +72,14 @@ app.innerHTML = `
     <section id="bubble" class="section section--bubble section--visible" data-reveal>
       <div class="section__intro section__intro--tech">
         <span class="section__tag">ROSTER</span>
-        <h2>在线牛牛</h2>
-      <div class="bubble-toolbar">
-        <p class="section__legend" data-bubble-legend>加载名册气泡…</p>
-        <div class="bubble-view-toggle" data-bubble-view-toggle role="group" aria-label="气泡墙视图">
-          <button type="button" class="bubble-view-toggle__btn bubble-view-toggle__btn--active" data-bubble-view="flat" aria-pressed="true">平铺</button>
-          <button type="button" class="bubble-view-toggle__btn" data-bubble-view="sphere" aria-pressed="false">立体</button>
+        <div class="section__head">
+          <h2>在线牛牛</h2>
+          <div class="bubble-view-toggle" data-bubble-view-toggle role="group" aria-label="气泡墙视图">
+            <button type="button" class="bubble-view-toggle__btn bubble-view-toggle__btn--active" data-bubble-view="flat" aria-pressed="true">平铺</button>
+            <button type="button" class="bubble-view-toggle__btn" data-bubble-view="sphere" aria-pressed="false">立体</button>
+          </div>
         </div>
-      </div>
+        <p class="section__legend bubble-section__legend" data-bubble-legend>加载名册气泡…</p>
       </div>
       <div class="bubble-shell tech-shell">
         <div data-bubble-empty class="bubble-empty" hidden></div>
