@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 
+from pallas_community_stats.version_rank import rank_online_versions
+
 
 @dataclass(frozen=True)
 class DeploymentSnapshot:
@@ -204,12 +206,12 @@ class StatsStore:
                 FROM deployments
                 WHERE last_seen_unix >= ? AND version != ''
                 GROUP BY version
-                ORDER BY c DESC, version ASC
-                LIMIT 5
                 """,
                 (cutoff,),
             ).fetchall()
-        online_versions = [{"version": str(row["version"]), "count": int(row["c"])} for row in version_rows]
+        online_versions = rank_online_versions(
+            [(str(row["version"]), int(row["c"])) for row in version_rows],
+        )
         return {
             "deployments_total": int(total_row["c"] if total_row else 0),
             "deployments_online": int(online_row["deployments_online"] if online_row else 0),
