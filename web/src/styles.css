@@ -817,7 +817,10 @@ html[data-theme="light"] .tech-shell::before {
   color: #fff;
   font-size: 0.82rem;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
+  box-sizing: border-box;
   box-shadow: 0 4px 12px rgba(47, 116, 232, 0.22);
 }
 
@@ -997,14 +1000,15 @@ html[data-theme="light"] .tech-shell::before {
 .bubble-popover {
   position: fixed;
   z-index: 40;
-  min-width: 148px;
-  max-width: min(240px, calc(100vw - 32px));
+  min-width: min(200px, calc(100vw - 32px));
+  max-width: min(260px, calc(100vw - 32px));
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(15, 20, 25, 0.1);
   background: #ffffff;
   color: #15202b;
   box-shadow: 0 12px 32px rgba(15, 20, 25, 0.18);
+  box-sizing: border-box;
 }
 
 .bubble-popover--above {
@@ -1034,8 +1038,8 @@ html[data-theme="light"] .tech-shell::before {
 }
 
 .bubble-popover__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-top: 10px;
 }
@@ -1052,7 +1056,10 @@ html[data-theme="light"] .tech-shell::before {
   color: #fff;
   font-size: 0.9rem;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .bubble-popover__add:hover {
@@ -1074,7 +1081,10 @@ html[data-theme="light"] .tech-shell::before {
   color: #2f3b4a;
   font-size: 0.88rem;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .bubble-popover__copy:hover {
@@ -1299,8 +1309,14 @@ html[data-theme="light"] .tech-shell::before {
     align-items: flex-start;
   }
 
-  .bot-list__action {
+  .bot-list__actions {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .bot-list__action {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .site-header__link {

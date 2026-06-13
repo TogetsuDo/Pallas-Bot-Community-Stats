@@ -288,7 +288,7 @@ export class BubbleWall {
       const copyBtn = document.createElement("button");
       copyBtn.type = "button";
       copyBtn.className = "bubble-popover__copy";
-      copyBtn.textContent = "复制 QQ 号";
+      copyBtn.textContent = "复制 QQ";
       copyBtn.addEventListener("click", (event) => {
         event.stopPropagation();
         void copyQQNumber(bot.qq!);
