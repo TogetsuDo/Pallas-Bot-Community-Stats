@@ -136,11 +136,9 @@ app.innerHTML = `
   <footer class="site-footer">
     <p>不上报群号与消息正文；气泡墙仅展示 opt-in 公开的名册与活跃度权重。</p>
     <p>
-      <a href="/v1/monitor/overview" target="_blank" rel="noreferrer">监控 JSON</a>
-      ·
-      <a href="/v1/roster/bubble" target="_blank" rel="noreferrer">名册 JSON</a>
-      ·
       <a href="https://github.com/PallasBot/Pallas-Bot" target="_blank" rel="noreferrer">Pallas-Bot</a>
+      ·
+      <a href="https://PallasBot.github.io/Pallas-Bot-Docs/" target="_blank" rel="noreferrer">文档</a>
     </p>
   </footer>
 `;
