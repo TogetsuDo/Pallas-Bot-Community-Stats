@@ -85,7 +85,7 @@ app.innerHTML = `
       <div class="bot-list">
         <div class="bot-list__hd">
           <button type="button" class="bot-list__toggle" data-bot-list-toggle aria-expanded="false">查看全部牛牛</button>
-          <span class="bot-list__count" data-bot-list-count>共 0 只 · 在线 0 只</span>
+          <span class="bot-list__count" data-bot-list-count>上报公开 0 只 · 在线 0 只</span>
         </div>
         <div data-bot-list-panel class="bot-list__panel" hidden>
           <div class="bot-list__filters" role="tablist" aria-label="牛牛筛选">

@@ -65,7 +65,7 @@ export class BubbleWall {
     const token = ++this.renderToken;
     this.lastBots = bots;
     const onlineCount = bots.filter((bot) => bot.online).length;
-    this.legend.textContent = `共 ${bots.length} 只 · 在线 ${onlineCount} 只 · 点击头像查看昵称与添加好友`;
+    this.legend.textContent = `上报公开共 ${bots.length} 只 · 在线 ${onlineCount} 只 · 点击头像查看昵称与添加好友`;
 
     if (!bots.length) {
       this.empty.hidden = false;

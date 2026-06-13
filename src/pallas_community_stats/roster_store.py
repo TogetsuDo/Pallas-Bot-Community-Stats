@@ -181,10 +181,11 @@ class RosterStore:
 
         merged: dict[str, dict[str, object]] = {}
         for row in rows:
+            if not bool(row["entry_show_qq"]):
+                continue
             key = str(row["bot_key"])
-            row_show_qq = bool(row["show_qq"])
-            row_show_profile = bool(row["show_profile"])
-            entry_show_qq = bool(row["entry_show_qq"]) and row_show_qq
+            dep_show_qq = bool(row["show_qq"])
+            dep_show_profile = bool(row["show_profile"])
             bucket = merged.get(key)
             if bucket is None:
                 merged[key] = {
@@ -193,12 +194,12 @@ class RosterStore:
                     "online": bool(row["online"]),
                     "message_weight": int(row["message_weight"]),
                     "updated_unix": int(row["updated_unix"]),
-                    "show_qq": entry_show_qq,
-                    "show_profile": row_show_profile,
+                    "show_qq": dep_show_qq,
+                    "show_profile": dep_show_profile,
                 }
                 continue
-            bucket["show_qq"] = bool(bucket["show_qq"]) or entry_show_qq
-            bucket["show_profile"] = bool(bucket["show_profile"]) or row_show_profile
+            bucket["show_qq"] = bool(bucket["show_qq"]) or dep_show_qq
+            bucket["show_profile"] = bool(bucket["show_profile"]) or dep_show_profile
             bucket["online"] = bool(bucket["online"]) or bool(row["online"])
             bucket["message_weight"] = max(int(bucket["message_weight"]), int(row["message_weight"]))
             nick = str(row["nickname"] or "").strip()

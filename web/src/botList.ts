@@ -53,7 +53,7 @@ export class BotListPanel {
   update(bots: BubbleBot[]): void {
     this.bots = bots;
     const online = bots.filter((bot) => bot.online).length;
-    this.countEl.textContent = `共 ${bots.length} 只 · 在线 ${online} 只`;
+    this.countEl.textContent = `上报公开 ${bots.length} 只 · 在线 ${online} 只`;
     if (this.open) this.renderList();
   }
 

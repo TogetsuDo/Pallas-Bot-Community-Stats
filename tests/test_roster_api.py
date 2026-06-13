@@ -157,7 +157,7 @@ def test_roster_bubble_qq_only_hides_avatar(client: TestClient) -> None:
     assert row["nickname"] == "牛 2"
 
 
-def test_roster_bubble_per_bot_show_qq_off(client: TestClient) -> None:
+def test_roster_bubble_per_bot_show_qq_off_excluded(client: TestClient) -> None:
     dep = str(uuid.uuid4())
     client.post(
         "/v1/heartbeat",
@@ -174,8 +174,7 @@ def test_roster_bubble_per_bot_show_qq_off(client: TestClient) -> None:
         headers=_headers(),
     )
     bubble = client.get("/v1/roster/bubble").json()
-    by_nick = {row["nickname"]: row for row in bubble["bots"]}
-    assert by_nick["公开牛"]["qq"] == 50001
-    assert by_nick["公开牛"]["profile_url"].startswith("tencent://ntqq-open")
-    assert by_nick["隐藏牛"]["qq"] is None
-    assert by_nick["隐藏牛"]["profile_url"] == ""
+    nicknames = {row["nickname"] for row in bubble["bots"]}
+    assert bubble["bots_total"] == 1
+    assert "公开牛" in nicknames
+    assert "隐藏牛" not in nicknames
