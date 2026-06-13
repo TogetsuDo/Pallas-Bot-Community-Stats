@@ -1,7 +1,21 @@
 import { fetchBubbleRoster, fetchOverview, formatNum } from "./api";
+import brandMarkUrl from "./assets/favicon.png?url";
 import { BubbleWall } from "./bubble";
 import { renderOverview, renderOverviewError } from "./overview";
 import "./styles.css";
+
+function ensureFavicon(): void {
+  let el = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (!el) {
+    el = document.createElement("link");
+    el.rel = "icon";
+    el.type = "image/png";
+    document.head.appendChild(el);
+  }
+  el.href = brandMarkUrl;
+}
+
+ensureFavicon();
 
 const app = document.querySelector<HTMLElement>("#app");
 if (!app) throw new Error("#app missing");
@@ -9,7 +23,7 @@ if (!app) throw new Error("#app missing");
 app.innerHTML = `
   <header class="site-header" data-site-header>
     <div class="site-header__brand">
-      <span class="site-header__logo" aria-hidden="true">🐮</span>
+      <img class="site-header__logo" src="${brandMarkUrl}" width="32" height="32" alt="" />
       <div>
         <div class="site-header__title">Pallas 社区中心</div>
         <div class="site-header__sub" data-header-sub>加载中…</div>

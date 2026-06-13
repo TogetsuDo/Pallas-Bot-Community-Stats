@@ -331,8 +331,10 @@
   "bots": [
     {
       "bot_key": "a1b2…",
+      "qq": 123456789,
       "nickname": "福牛一号",
       "avatar_url": "https://q1.qlogo.cn/g?b=qq&nk=123456789&s=160",
+      "profile_url": "tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams=…",
       "online": true,
       "message_weight": 1280
     }
@@ -406,4 +408,4 @@
 
 ## 隐私
 
-默认心跳**不**接收 QQ 号列表、群号。仅当部署 **opt-in** `roster_public=true` 时，心跳可附带公开名册（`roster`）供气泡墙展示；公开 API **不返回 QQ**，仅返回昵称与头像 URL。语料 API 仅存匿名 `keywords` 与短句（`group_id=0`），不含 QQ/群号。
+默认心跳**不**接收 QQ 号列表、群号。仅当部署 **opt-in** `roster_public=true` 时，心跳可附带公开名册（`roster`）供气泡墙展示；公开 API 返回昵称、QQ 号与 `profile_url`（用于唤起 QQ 资料卡），不含群号与消息正文。语料 API 仅存匿名 `keywords` 与短句（`group_id=0`），不含 QQ/群号。

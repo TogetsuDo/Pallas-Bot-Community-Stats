@@ -232,8 +232,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         bots = [
             BubbleBotPublic(
                 bot_key=row.bot_key,
+                qq=row.qq,
                 nickname=row.nickname,
                 avatar_url=row.avatar_url,
+                profile_url=row.profile_url,
                 online=row.online,
                 message_weight=row.message_weight,
             )

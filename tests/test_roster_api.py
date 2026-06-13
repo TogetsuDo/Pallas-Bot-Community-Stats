@@ -63,8 +63,11 @@ def test_roster_heartbeat_public_and_bubble(client: TestClient) -> None:
     nicknames = {row["nickname"] for row in bubble["bots"]}
     assert nicknames == {"福牛一号", "离线牛"}
     for row in bubble["bots"]:
-        assert "qq" not in row
+        assert row["qq"] > 0
+        assert row["profile_url"].startswith("tencent://ntqq-open")
         assert row["avatar_url"].startswith("https://q1.qlogo.cn/")
+    online_row = next(r for r in bubble["bots"] if r["nickname"] == "福牛一号")
+    assert online_row["qq"] == 10001
 
 
 def test_roster_clear_when_not_public(client: TestClient) -> None:

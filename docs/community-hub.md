@@ -9,7 +9,7 @@
 
 1. **首屏**：社区概览（部署数、在线牛、语料、联邦等），数据来自现有 `GET /v1/monitor/overview`。
 2. **向下滚动**：进入**全社区扁平一层**牛牛气泡墙——头像 + 昵称，气泡半径按消息量缩放，区分在线/离线。
-3. **隐私**：不上报群号/消息正文；单牛 QQ **不对外暴露**；仅 opt-in 部署的名册进入气泡墙。
+3. **隐私**：不上报群号/消息正文；仅 opt-in 部署的名册进入气泡墙；公开 API 含 QQ 与资料卡链接供点击加好友。
 
 ## 页面结构
 
@@ -29,7 +29,7 @@
 | 行为 | 说明 |
 | --- | --- |
 | 首屏 | 请求 `/v1/monitor/overview`，概览先渲染 |
-| 气泡区 | `IntersectionObserver` 进入视口后拉 `/v1/roster/bubble`，之后每 60s 刷新 |
+| 气泡区 | `IntersectionObserver` 进入视口后拉 `/v1/roster/bubble`，之后每 60s 刷新；**点击气泡**唤起 QQ 资料卡（`profile_url` deep link） |
 | 窄屏 ≤560px | 概览卡片单列；气泡 pack 缩小，牛过多时允许横向滚动容器 |
 | 空名册 | 气泡区文案 + WebUI opt-in 说明（Bot 侧 P2） |
 
@@ -95,8 +95,10 @@
   "bots": [
     {
       "bot_key": "a1b2…",
+      "qq": 123456789,
       "nickname": "福牛一号",
       "avatar_url": "https://q1.qlogo.cn/g?b=qq&nk=123456789&s=160",
+      "profile_url": "tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams=…",
       "online": true,
       "message_weight": 1280
     }
@@ -108,7 +110,9 @@
 | --- | --- |
 | `bots_total` | 返回列表长度 |
 | `bots_online` | `online=true` 数量 |
-| `avatar_url` | 中心根据内部 `qq` 生成；响应**不含 qq** |
+| `avatar_url` | 中心根据 `qq` 生成 QQ 头像 URL |
+| `profile_url` | NTQQ deep link，点击唤起资料卡 |
+| `qq` | 牛牛 QQ 号（opt-in 名册即同意公开展示） |
 
 `Cache-Control: public, max-age=60`（与前端轮询对齐）。
 
@@ -117,7 +121,8 @@
 - 库：**D3** `pack` 布局（扁平一层，无部署嵌套）。
 - 半径：`r = rMin + k * sqrt(message_weight)`，权重为 0 时用 `rMin`。
 - 在线：彩色描边 + 可选轻微 pulse；离线：`opacity` 降低 + 灰度滤镜。
-- 标签：昵称 truncate；hover / tap 显示 nickname + 活跃度档位（不必暴露精确 message_weight）。
+- 标签：昵称 truncate；hover / tap 显示 nickname + 活跃度档位。
+- **点击**：打开 `profile_url` 唤起 QQ 资料卡；无客户端时 fallback 复制 QQ 号。
 
 ## 实施分期
 
@@ -138,7 +143,7 @@
 
 - Nginx 仍为 `location /` 全量反代至 `8099`，**无需**单独静态 location。
 - 升级镜像后访问 `/` 即新版本；API 路径不变。
-- 隐私：定期审计 `roster_bots` 不对外 leak qq；日志不打 roster 正文。
+- 隐私：定期审计 roster 数据；日志不打 roster 正文。
 
 ## 相关
 

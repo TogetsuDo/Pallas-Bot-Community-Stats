@@ -109,8 +109,10 @@ class MonitorOverviewResponse(BaseModel):
 
 class BubbleBotPublic(BaseModel):
     bot_key: str
+    qq: Annotated[int, Field(ge=1, le=999_999_999_999)]
     nickname: str
     avatar_url: str
+    profile_url: str
     online: bool
     message_weight: int
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 
-from pallas_community_stats.roster_util import bot_key_for_qq, qq_avatar_url
+from pallas_community_stats.roster_util import bot_key_for_qq, qq_avatar_url, qq_profile_deep_link
 
 
 @dataclass(frozen=True)
@@ -20,8 +20,10 @@ class RosterUpsertEntry:
 @dataclass(frozen=True)
 class BubbleBotRow:
     bot_key: str
+    qq: int
     nickname: str
     avatar_url: str
+    profile_url: str
     online: bool
     message_weight: int
 
@@ -138,8 +140,10 @@ class RosterStore:
             out.append(
                 BubbleBotRow(
                     bot_key=bot_key,
+                    qq=qq,
                     nickname=str(data["nickname"] or f"牛 {qq % 10000}"),
                     avatar_url=qq_avatar_url(qq),
+                    profile_url=qq_profile_deep_link(qq),
                     online=bool(data["online"]),
                     message_weight=int(data["message_weight"]),
                 )
