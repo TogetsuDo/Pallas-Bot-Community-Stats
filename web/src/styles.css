@@ -110,6 +110,10 @@ a {
   scroll-margin-top: 72px;
 }
 
+.section--overview {
+  scroll-margin-top: 72px;
+}
+
 .section__intro h1,
 .section__intro h2 {
   margin: 0 0 8px;

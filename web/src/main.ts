@@ -29,29 +29,29 @@ app.innerHTML = `
         <div class="site-header__sub" data-header-sub>加载中…</div>
       </div>
     </div>
-    <a class="site-header__link" href="#bubble">查看牛牛</a>
+    <a class="site-header__link" href="#overview">查看概览</a>
   </header>
 
   <main>
-    <section id="overview" class="section section--overview">
-      <div class="section__intro">
-        <h1>社区概览</h1>
-        <p>自愿接入的 Pallas 自托管安装汇总。向下滚动查看公开名册的在线牛牛气泡墙。</p>
-      </div>
-      <div data-overview-root class="overview-root">
-        <div class="skeleton-grid" aria-hidden="true"></div>
-      </div>
-      <a class="scroll-hint" href="#bubble">向下查看在线牛牛 ↓</a>
-    </section>
-
     <section id="bubble" class="section section--bubble">
       <div class="section__intro">
-        <h2>在线牛牛</h2>
-        <p class="section__legend" data-bubble-legend>进入此区域后加载名册…</p>
+        <h1>在线牛牛</h1>
+        <p class="section__legend" data-bubble-legend>加载名册中…</p>
       </div>
       <div class="bubble-shell">
         <div data-bubble-empty class="bubble-empty" hidden></div>
         <div data-bubble-canvas class="bubble-canvas"></div>
+      </div>
+      <a class="scroll-hint" href="#overview">向下查看社区概览 ↓</a>
+    </section>
+
+    <section id="overview" class="section section--overview">
+      <div class="section__intro">
+        <h2>社区概览</h2>
+        <p>自愿接入的 Pallas 自托管安装汇总：部署规模、语料与联邦等聚合统计。</p>
+      </div>
+      <div data-overview-root class="overview-root">
+        <div class="skeleton-grid" aria-hidden="true"></div>
       </div>
     </section>
   </main>
