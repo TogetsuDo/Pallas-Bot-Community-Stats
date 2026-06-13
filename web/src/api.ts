@@ -28,7 +28,7 @@ export type MonitorOverview = {
 
 export type BubbleBot = {
   bot_key: string;
-  qq: number;
+  qq?: number;
   nickname: string;
   avatar_url: string;
   profile_url: string;

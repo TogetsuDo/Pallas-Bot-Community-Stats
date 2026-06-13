@@ -227,6 +227,7 @@ a {
 }
 
 .bubble-canvas {
+  position: relative;
   width: 100%;
   min-height: 420px;
 }
@@ -252,6 +253,15 @@ a {
 .bubble-node--clickable:focus-visible .bubble-node__halo {
   stroke: var(--accent);
   stroke-width: 3;
+}
+
+.bubble-node--active .bubble-node__halo {
+  stroke: var(--accent);
+  stroke-width: 3.5;
+}
+
+.bubble-node--active .bubble-node__body {
+  transform: scale(1.08);
 }
 
 .bubble-node__body {
@@ -320,6 +330,69 @@ a {
   font-size: 11px;
   font-weight: 600;
   pointer-events: none;
+}
+
+.bubble-popover {
+  position: absolute;
+  z-index: 4;
+  min-width: 148px;
+  max-width: min(240px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(18, 24, 32, 0.96);
+  box-shadow: var(--shadow);
+  transform: translate(-50%, calc(-100% - 10px));
+  animation: bubble-popover-enter 0.2s ease-out;
+}
+
+.bubble-popover__name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.bubble-popover__meta {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.bubble-popover__add {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #3d8bfd, #2f6fe0);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bubble-popover__add:hover {
+  filter: brightness(1.06);
+}
+
+.bubble-popover__add:active {
+  transform: translateY(1px);
+}
+
+@keyframes bubble-popover-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 4px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, calc(-100% - 10px));
+  }
 }
 
 @keyframes bubble-enter {

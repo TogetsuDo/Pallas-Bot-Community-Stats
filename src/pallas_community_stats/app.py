@@ -145,6 +145,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     for entry in body.roster
                 ],
                 seen_unix=server_ts,
+                show_qq=body.roster_show_qq,
+                show_profile=body.roster_show_profile,
             )
         else:
             roster_store.clear_deployment_roster(body.deployment_id)
@@ -232,7 +234,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         bots = [
             BubbleBotPublic(
                 bot_key=row.bot_key,
-                qq=row.qq,
+                qq=row.qq if row.show_qq else None,
                 nickname=row.nickname,
                 avatar_url=row.avatar_url,
                 profile_url=row.profile_url,

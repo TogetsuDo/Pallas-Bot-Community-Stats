@@ -24,6 +24,8 @@ class HeartbeatBody(BaseModel):
     catalog_bots: Annotated[int, Field(ge=0, le=10_000)] = 0
     sharded: bool = False
     shard_workers: Annotated[int | None, Field(ge=0, le=256)] = None
+    roster_show_qq: bool = True
+    roster_show_profile: bool = True
     roster_public: bool = False
     roster: Annotated[list[RosterEntryBody], Field(max_length=256)] = Field(default_factory=list)
 
@@ -109,10 +111,10 @@ class MonitorOverviewResponse(BaseModel):
 
 class BubbleBotPublic(BaseModel):
     bot_key: str
-    qq: Annotated[int, Field(ge=1, le=999_999_999_999)]
+    qq: Annotated[int | None, Field(default=None, ge=1, le=999_999_999_999)] = None
     nickname: str
-    avatar_url: str
-    profile_url: str
+    avatar_url: str = ""
+    profile_url: str = ""
     online: bool
     message_weight: int
 

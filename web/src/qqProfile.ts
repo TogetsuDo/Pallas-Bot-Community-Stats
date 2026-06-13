@@ -9,7 +9,20 @@ export async function openQQProfile(qq: number, profileUrl?: string): Promise<vo
     window.removeEventListener("blur", onBlur);
   };
   window.addEventListener("blur", onBlur);
-  window.location.href = url;
+  navigateTencentDeepLink(url);
+}
+
+function navigateTencentDeepLink(url: string): void {
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.rel = "noopener noreferrer";
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.setTimeout(() => {
+    window.location.assign(url);
+  }, 80);
 }
 
 function buildQQProfileDeepLink(qq: number): string {

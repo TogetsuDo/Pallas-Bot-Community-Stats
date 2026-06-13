@@ -115,3 +115,43 @@ def test_roster_merge_same_qq_across_deployments(client: TestClient) -> None:
     assert bubble["bots_total"] == 1
     assert bubble["bots_online"] == 1
     assert bubble["bots"][0]["message_weight"] == 500
+
+
+def test_roster_bubble_profile_only_hides_qq(client: TestClient) -> None:
+    dep = str(uuid.uuid4())
+    client.post(
+        "/v1/heartbeat",
+        json={
+            "deployment_id": dep,
+            "roster_public": True,
+            "roster_show_qq": False,
+            "roster_show_profile": True,
+            "roster": [{"qq": 40001, "nickname": "只露脸", "online": True, "message_weight": 10}],
+        },
+        headers=_headers(),
+    )
+    row = client.get("/v1/roster/bubble").json()["bots"][0]
+    assert row["nickname"] == "只露脸"
+    assert row["avatar_url"].startswith("https://q1.qlogo.cn/")
+    assert row["qq"] is None
+    assert row["profile_url"] == ""
+
+
+def test_roster_bubble_qq_only_hides_avatar(client: TestClient) -> None:
+    dep = str(uuid.uuid4())
+    client.post(
+        "/v1/heartbeat",
+        json={
+            "deployment_id": dep,
+            "roster_public": True,
+            "roster_show_qq": True,
+            "roster_show_profile": False,
+            "roster": [{"qq": 40002, "nickname": "只露号", "online": True, "message_weight": 10}],
+        },
+        headers=_headers(),
+    )
+    row = client.get("/v1/roster/bubble").json()["bots"][0]
+    assert row["qq"] == 40002
+    assert row["profile_url"].startswith("tencent://ntqq-open")
+    assert row["avatar_url"] == ""
+    assert row["nickname"] == "牛 2"

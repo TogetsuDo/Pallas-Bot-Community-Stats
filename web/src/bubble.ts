@@ -11,7 +11,7 @@ type BubbleDatum = {
 type PackNode = d3.HierarchyCircularNode<BubbleDatum>;
 
 const BUBBLE_POLL_MS = 60_000;
-const LABEL_RESERVE = 28;
+const PACK_PAD_RESERVE = 6;
 
 export class BubbleWall {
   private readonly section: HTMLElement;
@@ -22,6 +22,10 @@ export class BubbleWall {
   private started = false;
   private resizeObserver: ResizeObserver | null = null;
   private renderToken = 0;
+  private activeBotKey: string | null = null;
+  private lastBots: BubbleBot[] = [];
+  private popoverEl: HTMLElement | null = null;
+  private docClickBound: ((event: MouseEvent) => void) | null = null;
 
   constructor(section: HTMLElement) {
     this.section = section;
@@ -52,30 +56,37 @@ export class BubbleWall {
       this.empty.hidden = false;
       this.empty.textContent = `气泡数据加载失败：${err instanceof Error ? err.message : String(err)}`;
       this.canvasHost.innerHTML = "";
+      this.hidePopover();
     }
   }
 
   private render(bots: BubbleBot[]): void {
     const token = ++this.renderToken;
+    this.lastBots = bots;
     const onlineCount = bots.filter((bot) => bot.online).length;
-    this.legend.textContent = `共 ${bots.length} 只 · 在线 ${onlineCount} 只 · 点击头像查看 QQ 资料`;
+    this.legend.textContent = `共 ${bots.length} 只 · 在线 ${onlineCount} 只 · 点击头像查看昵称与添加好友`;
 
     if (!bots.length) {
       this.empty.hidden = false;
       this.empty.textContent =
         "暂无公开名册的牛牛。部署方可在 Pallas 控制台开启「社区名册公开」后出现在此（功能陆续接入）。";
       this.canvasHost.innerHTML = "";
+      this.hidePopover();
       return;
     }
 
+    if (this.activeBotKey && !bots.some((bot) => bot.bot_key === this.activeBotKey)) {
+      this.activeBotKey = null;
+      this.hidePopover();
+    }
+
     this.empty.hidden = true;
-    this.canvasHost.innerHTML = "";
+    this.canvasHost.querySelector(".bubble-svg")?.remove();
 
     const width = this.canvasHost.clientWidth || 960;
     const isNarrow = width <= 560;
     const baseHeight = isNarrow ? Math.max(440, width * 0.95) : Math.max(540, Math.min(740, width * 0.62));
     const packPad = isNarrow ? 10 : 14;
-    const minLabelR = isNarrow ? 24 : 30;
 
     const rootData: BubbleDatum = {
       value: 0,
@@ -87,7 +98,7 @@ export class BubbleWall {
 
     const pack = d3
       .pack<BubbleDatum>()
-      .size([width - packPad * 2, baseHeight - LABEL_RESERVE - packPad * 2])
+      .size([width - packPad * 2, baseHeight - PACK_PAD_RESERVE - packPad * 2])
       .padding(isNarrow ? 6 : 10);
     const root = pack(d3.hierarchy(rootData).sum((d) => d.value)) as PackNode;
     const nodes = root.leaves().map((node) => ({
@@ -96,7 +107,7 @@ export class BubbleWall {
       y: node.y + packPad,
     }));
 
-    const maxBottom = d3.max(nodes, (d) => d.y + d.r + LABEL_RESERVE) ?? baseHeight;
+    const maxBottom = d3.max(nodes, (d) => d.y + d.r) ?? baseHeight;
     const height = Math.max(baseHeight, maxBottom + packPad);
 
     const svg = d3
@@ -128,23 +139,44 @@ export class BubbleWall {
       .attr("class", (d) => {
         const online = d.data.bot?.online ? " bubble-node--online" : " bubble-node--offline";
         const clickable = d.data.bot?.profile_url ? " bubble-node--clickable" : "";
-        return `bubble-node${online}${clickable}`;
+        const active = d.data.bot?.bot_key === this.activeBotKey ? " bubble-node--active" : "";
+        return `bubble-node${online}${clickable}${active}`;
       })
+      .attr("data-bot-key", (d) => d.data.bot?.bot_key ?? "")
       .attr("transform", (d) => `translate(${d.x},${d.y})`)
       .style("--bubble-delay", (_, i) => `${Math.min(i * 45, 720)}ms`)
       .attr("role", (d) => (d.data.bot?.profile_url ? "button" : null))
       .attr("tabindex", (d) => (d.data.bot?.profile_url ? 0 : null))
-      .on("click", (_, d) => {
+      .attr("aria-expanded", (d) => (d.data.bot?.bot_key === this.activeBotKey ? "true" : "false"))
+      .on("click", (event, d) => {
+        event.stopPropagation();
         const bot = d.data.bot;
         if (!bot?.profile_url) return;
-        void openQQProfile(bot.qq, bot.profile_url);
+        if (this.activeBotKey === bot.bot_key) {
+          this.activeBotKey = null;
+          this.hidePopover();
+          node.classed("bubble-node--active", false);
+          return;
+        }
+        this.activeBotKey = bot.bot_key;
+        node.classed("bubble-node--active", (n) => n.data.bot?.bot_key === bot.bot_key);
+        this.showPopover(event.currentTarget as SVGGElement, bot);
       })
       .on("keydown", (event, d) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         const bot = d.data.bot;
         if (!bot?.profile_url) return;
         event.preventDefault();
-        void openQQProfile(bot.qq, bot.profile_url);
+        event.stopPropagation();
+        if (this.activeBotKey === bot.bot_key) {
+          this.activeBotKey = null;
+          this.hidePopover();
+          node.classed("bubble-node--active", false);
+          return;
+        }
+        this.activeBotKey = bot.bot_key;
+        node.classed("bubble-node--active", (n) => n.data.bot?.bot_key === bot.bot_key);
+        this.showPopover(event.currentTarget as SVGGElement, bot);
       });
 
     const body = node.append("g").attr("class", "bubble-node__body");
@@ -161,77 +193,133 @@ export class BubbleWall {
       .attr("class", "bubble-node__halo");
 
     const avatarInset = 4;
-    body
-      .append("image")
-      .attr("class", "bubble-node__avatar")
-      .attr("href", (d) => d.data.bot?.avatar_url ?? "")
-      .attr("width", (d) => Math.max(0, (d.r - avatarInset) * 2))
-      .attr("height", (d) => Math.max(0, (d.r - avatarInset) * 2))
-      .attr("x", (d) => -(d.r - avatarInset))
-      .attr("y", (d) => -(d.r - avatarInset))
-      .attr("clip-path", (_, i) => `url(#${clipPrefix}-${i})`);
-
-    const labelLayer = svg.append("g").attr("class", "bubble-label-layer");
-
-    labelLayer
-      .selectAll<SVGGElement, (typeof nodes)[number]>("g.bubble-node__label-wrap")
-      .data(nodes.filter((d) => d.r >= minLabelR))
-      .join("g")
-      .attr("class", (d) =>
-        d.data.bot?.online ? "bubble-node__label-wrap bubble-node__label-wrap--online" : "bubble-node__label-wrap",
-      )
-      .attr("transform", (d) => `translate(${d.x}, ${d.y + d.r + (isNarrow ? 8 : 10)})`)
-      .style("--bubble-delay", (_, i) => `${Math.min(i * 45 + 120, 840)}ms`)
-      .each(function (d) {
-        const nickname = truncate(d.data.bot?.nickname ?? "", isNarrow ? 8 : 12);
-        if (!nickname) return;
-
-        const wrap = d3.select(this);
-        const text = wrap
-          .append("text")
-          .attr("class", "bubble-node__label")
-          .attr("text-anchor", "middle")
-          .attr("dy", "0.35em")
-          .text(nickname);
-
-        const box = (text.node() as SVGTextElement).getBBox();
-        const padX = 8;
-        const padY = 4;
-        wrap
-          .insert("rect", "text")
-          .attr("class", "bubble-node__label-bg")
-          .attr("x", box.x - padX)
-          .attr("y", box.y - padY)
-          .attr("width", box.width + padX * 2)
-          .attr("height", box.height + padY * 2)
-          .attr("rx", box.height / 2 + padY);
-      });
+    body.each(function (this: SVGGElement, d, i) {
+      const g = d3.select(this);
+      const bot = d.data.bot;
+      const r = d.r - avatarInset;
+      if (bot?.avatar_url) {
+        g.append("image")
+          .attr("class", "bubble-node__avatar")
+          .attr("href", bot.avatar_url)
+          .attr("width", Math.max(0, r * 2))
+          .attr("height", Math.max(0, r * 2))
+          .attr("x", -r)
+          .attr("y", -r)
+          .attr("clip-path", `url(#${clipPrefix}-${i})`);
+        return;
+      }
+      const label = (bot?.nickname || "?").trim().slice(0, 1) || "?";
+      g.append("circle")
+        .attr("class", "bubble-node__avatar-fallback")
+        .attr("r", r)
+        .attr("fill", "var(--bubble-fallback-fill, #3d4556)");
+      g.append("text")
+        .attr("class", "bubble-node__avatar-fallback-text")
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "central")
+        .attr("font-size", Math.max(12, r * 0.9))
+        .text(label);
+    });
 
     node.append("title").text((d) => {
       const bot = d.data.bot;
       if (!bot) return "";
       const tier = activityTier(bot.message_weight);
-      return `${bot.nickname}\n${bot.online ? "在线" : "离线"} · 活跃度 ${tier}\n点击查看 QQ 资料`;
+      return `${bot.nickname}\n${bot.online ? "在线" : "离线"} · 活跃度 ${tier}\n点击头像查看昵称与添加好友`;
     });
+
+    if (this.activeBotKey) {
+      const activeBot = bots.find((bot) => bot.bot_key === this.activeBotKey);
+      const activeNode = this.canvasHost.querySelector<SVGGElement>(
+        `g.bubble-node[data-bot-key="${CSS.escape(this.activeBotKey)}"]`,
+      );
+      if (activeBot && activeNode) {
+        this.showPopover(activeNode, activeBot);
+      }
+    }
 
     if (!this.resizeObserver) {
       this.resizeObserver = new ResizeObserver(() => {
-        if (bots.length) this.render(bots);
+        if (this.lastBots.length) this.render(this.lastBots);
       });
       this.resizeObserver.observe(this.canvasHost);
     }
   }
 
+  private showPopover(nodeEl: SVGGElement, bot: BubbleBot): void {
+    this.hidePopover();
+    const popover = document.createElement("div");
+    popover.className = "bubble-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-label", `${bot.nickname} 资料`);
+
+    const name = document.createElement("p");
+    name.className = "bubble-popover__name";
+    name.textContent = bot.nickname.trim() || (bot.qq ? `牛 ${bot.qq}` : "牛牛");
+
+    const meta = document.createElement("p");
+    meta.className = "bubble-popover__meta";
+    const qqLine = bot.qq ? `QQ ${bot.qq} · ` : "";
+    meta.textContent = `${qqLine}${bot.online ? "在线" : "离线"} · 活跃度 ${activityTier(bot.message_weight)}`;
+
+    const actions: HTMLElement[] = [name, meta];
+    if (bot.profile_url && bot.qq) {
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "bubble-popover__add";
+      addBtn.textContent = "添加好友";
+      addBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void openQQProfile(bot.qq!, bot.profile_url);
+      });
+      actions.push(addBtn);
+    }
+
+    popover.append(...actions);
+    popover.addEventListener("click", (event) => event.stopPropagation());
+    this.canvasHost.appendChild(popover);
+    this.popoverEl = popover;
+    this.positionPopover(nodeEl, popover);
+
+    if (!this.docClickBound) {
+      this.docClickBound = (event: MouseEvent) => {
+        const target = event.target;
+        if (!(target instanceof Node)) return;
+        if (this.popoverEl?.contains(target)) return;
+        if (target instanceof Element && target.closest(".bubble-node")) return;
+        this.activeBotKey = null;
+        this.hidePopover();
+        this.canvasHost.querySelectorAll(".bubble-node--active").forEach((el) => {
+          el.classList.remove("bubble-node--active");
+        });
+      };
+      document.addEventListener("click", this.docClickBound);
+    }
+  }
+
+  private positionPopover(nodeEl: SVGGElement, popover: HTMLElement): void {
+    const bubbleRect = nodeEl.getBoundingClientRect();
+    const hostRect = this.canvasHost.getBoundingClientRect();
+    const centerX = bubbleRect.left - hostRect.left + bubbleRect.width / 2;
+    const topY = bubbleRect.top - hostRect.top;
+    popover.style.left = `${centerX}px`;
+    popover.style.top = `${topY}px`;
+  }
+
+  private hidePopover(): void {
+    this.popoverEl?.remove();
+    this.popoverEl = null;
+  }
+
   destroy(): void {
     if (this.pollTimer != null) window.clearInterval(this.pollTimer);
     this.resizeObserver?.disconnect();
+    this.hidePopover();
+    if (this.docClickBound) {
+      document.removeEventListener("click", this.docClickBound);
+      this.docClickBound = null;
+    }
   }
-}
-
-function truncate(text: string, max: number): string {
-  const trimmed = text.trim();
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max - 1)}…`;
 }
 
 function activityTier(weight: number): string {
