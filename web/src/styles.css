@@ -1933,44 +1933,58 @@ html[data-theme="light"] .corpus-hot__tab--active {
 .corpus-hot__canvas {
   position: relative;
   width: 100%;
-  min-height: 280px;
+}
+
+.corpus-hot__canvas--loading .corpus-hot__cloud {
+  opacity: 0.32;
+  filter: blur(1px);
+  transition:
+    opacity 0.22s ease,
+    filter 0.22s ease;
+}
+
+.corpus-hot__canvas--loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 8%, transparent) 42%,
+    color-mix(in srgb, var(--cyan) 10%, transparent) 58%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: hot-cloud-shimmer 1.15s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .corpus-hot__cloud {
-  position: relative;
-  width: 100%;
-  min-height: 280px;
-  margin: 0 auto;
-  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  transition: opacity 0.24s ease;
 }
 
-.corpus-hot__cloud::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(34vw, 180px);
-  height: min(34vw, 180px);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 72%);
-  pointer-events: none;
+.corpus-hot__cloud--tab-enter .corpus-hot__pill {
+  animation: hot-pill-tab-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--pill-i, 0) * 20ms);
 }
 
 .corpus-hot__cloud--selected .corpus-hot__pill:not(.corpus-hot__pill--active) {
   opacity: 0.42;
-  transform: translate(-50%, -50%) scale(0.96);
 }
 
 .corpus-hot__pill {
   --heat: 0.5;
-  position: absolute;
-  left: 0;
-  top: 0;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  max-width: min(300px, 58vw);
+  max-width: 100%;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--accent) calc(var(--heat) * 38%), var(--glass-border));
   background:
@@ -1984,7 +1998,6 @@ html[data-theme="light"] .corpus-hot__tab--active {
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
-  transform: translate(-50%, -50%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 4px 14px rgba(0, 0, 0, 0.12);
@@ -1993,12 +2006,10 @@ html[data-theme="light"] .corpus-hot__tab--active {
     opacity 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
-  animation: hot-pill-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--pill-i, 0) * 28ms);
 }
 
 .corpus-hot__pill:hover {
-  transform: translate(-50%, calc(-50% - 2px));
+  transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--accent) 55%, var(--glass-border-strong));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -2008,7 +2019,7 @@ html[data-theme="light"] .corpus-hot__tab--active {
 .corpus-hot__pill--active,
 .corpus-hot__cloud--selected .corpus-hot__pill--active {
   opacity: 1;
-  transform: translate(-50%, calc(-50% - 2px)) scale(1.03);
+  transform: translateY(-2px) scale(1.03);
   border-color: color-mix(in srgb, var(--accent) 72%, white);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
@@ -2078,7 +2089,9 @@ html[data-theme="light"] .corpus-hot__tab--active {
 
 .corpus-hot__pill-word {
   min-width: 0;
-  word-break: break-word;
+  max-width: min(240px, 72vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .corpus-hot__pill-score {
@@ -2096,14 +2109,29 @@ html[data-theme="light"] .corpus-hot__pill-score {
   background: rgba(255, 255, 255, 0.55);
 }
 
-@keyframes hot-pill-enter {
+html[data-theme="light"] .corpus-hot__pill {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 4px 14px rgba(26, 36, 52, 0.06);
+}
+
+@keyframes hot-pill-tab-enter {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.86);
+    transform: translateY(6px) scale(0.92);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hot-cloud-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
   }
 }
 

@@ -1,5 +1,5 @@
 import type { CorpusHotData, HotCorpusItem, HotTab } from "./api";
-import { layoutHotTags, rankHotItems } from "./hotBubbleLayout";
+import { rankHotItems } from "./hotBubbleLayout";
 
 const TAB_LABELS: Record<HotTab, string> = {
   fleet: "机群",
@@ -21,7 +21,7 @@ export class CorpusWordCloud {
   private selectedKeywords: string | null = null;
   private loadFn: ((tab: HotTab) => Promise<CorpusHotData>) | null = null;
   private busy = false;
-  private resizeObserver: ResizeObserver | null = null;
+  private pendingTabEnter = false;
 
   constructor(section: HTMLElement) {
     this.section = section;
@@ -43,6 +43,7 @@ export class CorpusWordCloud {
       btn.addEventListener("click", () => {
         const tab = btn.dataset.hotPeriod as HotTab | undefined;
         if (!tab || tab === this.tab || this.busy) return;
+        this.pendingTabEnter = true;
         this.tab = tab;
         this.selectedKeywords = null;
         this.syncTabs();
@@ -59,9 +60,17 @@ export class CorpusWordCloud {
     });
   }
 
+  private setCloudLoading(loading: boolean): void {
+    this.cloudEl.classList.toggle("corpus-hot__canvas--loading", loading);
+  }
+
   private async refresh(): Promise<void> {
     if (!this.loadFn) return;
     this.busy = true;
+    const tabSwitch = this.pendingTabEnter && this.items.length > 0;
+    if (tabSwitch) {
+      this.setCloudLoading(true);
+    }
     this.legendEl.textContent = `加载${TAB_LABELS[this.tab]}热词…`;
     try {
       const data = await this.loadFn(this.tab);
@@ -75,7 +84,7 @@ export class CorpusWordCloud {
       const hint =
         this.tab === "fleet" ? "标签越大越热 · 点击查看热度" : "标签越大越热 · 点击查看代表回复";
       this.legendEl.textContent = `${scope} · ${hint}`;
-      this.renderCloud();
+      this.renderCloud(tabSwitch);
       this.renderDetail();
     } catch (err) {
       this.items = [];
@@ -85,11 +94,13 @@ export class CorpusWordCloud {
       this.cloudEl.innerHTML = "";
       this.detailEl.innerHTML = "";
     } finally {
+      this.setCloudLoading(false);
+      this.pendingTabEnter = false;
       this.busy = false;
     }
   }
 
-  private renderCloud(): void {
+  private renderCloud(tabEnter = false): void {
     this.cloudEl.innerHTML = "";
     if (!this.items.length) {
       this.emptyEl.hidden = false;
@@ -103,13 +114,11 @@ export class CorpusWordCloud {
     }
     this.emptyEl.hidden = true;
 
-    const width = this.cloudEl.clientWidth || 960;
-    const { nodes, height } = layoutHotTags(this.items, width);
+    const nodes = rankHotItems(this.items);
     const cloud = document.createElement("div");
     cloud.className = "corpus-hot__cloud";
-    cloud.style.height = `${height}px`;
     cloud.setAttribute("role", "list");
-    cloud.setAttribute("aria-label", "共享语料热词云");
+    cloud.setAttribute("aria-label", "共享语料热词");
 
     nodes.forEach((node, index) => {
       const active = node.item.keywords === this.selectedKeywords;
@@ -124,8 +133,6 @@ export class CorpusWordCloud {
       }
       btn.style.setProperty("--heat", node.scoreRatio.toFixed(3));
       btn.style.setProperty("--pill-i", String(index));
-      btn.style.left = `${node.x}px`;
-      btn.style.top = `${node.y}px`;
       btn.dataset.keywords = node.item.keywords;
       btn.setAttribute("role", "listitem");
       btn.setAttribute("aria-pressed", active ? "true" : "false");
@@ -159,15 +166,11 @@ export class CorpusWordCloud {
     if (this.selectedKeywords) {
       cloud.classList.add("corpus-hot__cloud--selected");
     }
+    if (tabEnter) {
+      cloud.classList.add("corpus-hot__cloud--tab-enter");
+    }
 
     this.cloudEl.appendChild(cloud);
-
-    if (!this.resizeObserver) {
-      this.resizeObserver = new ResizeObserver(() => {
-        if (this.items.length) this.renderCloud();
-      });
-      this.resizeObserver.observe(this.cloudEl);
-    }
   }
 
   private toggleKeywords(keywords: string): void {
