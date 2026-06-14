@@ -1,11 +1,5 @@
 import type { CorpusHotData, HotCorpusItem, HotTab } from "./api";
-import { importD3 } from "./d3Loader";
-import {
-  hotBubbleFill,
-  hotBubbleFontSize,
-  hotBubbleLabel,
-  layoutHotBubbles,
-} from "./hotBubbleLayout";
+import { layoutHotTags, rankHotItems } from "./hotBubbleLayout";
 
 const TAB_LABELS: Record<HotTab, string> = {
   fleet: "机群",
@@ -28,7 +22,6 @@ export class CorpusWordCloud {
   private loadFn: ((tab: HotTab) => Promise<CorpusHotData>) | null = null;
   private busy = false;
   private resizeObserver: ResizeObserver | null = null;
-  private renderToken = 0;
 
   constructor(section: HTMLElement) {
     this.section = section;
@@ -80,9 +73,9 @@ export class CorpusWordCloud {
             ? "社区高频池"
             : `${TAB_LABELS[this.tab]}近期活跃`;
       const hint =
-        this.tab === "fleet" ? "气泡越大越热 · 点击查看热度" : "气泡越大越热 · 点击查看代表回复";
+        this.tab === "fleet" ? "标签越大越热 · 点击查看热度" : "标签越大越热 · 点击查看代表回复";
       this.legendEl.textContent = `${scope} · ${hint}`;
-      await this.renderCloud();
+      this.renderCloud();
       this.renderDetail();
     } catch (err) {
       this.items = [];
@@ -96,10 +89,7 @@ export class CorpusWordCloud {
     }
   }
 
-  private async renderCloud(): Promise<void> {
-    const token = ++this.renderToken;
-    const d3 = await importD3();
-    if (token !== this.renderToken) return;
+  private renderCloud(): void {
     this.cloudEl.innerHTML = "";
     if (!this.items.length) {
       this.emptyEl.hidden = false;
@@ -114,64 +104,67 @@ export class CorpusWordCloud {
     this.emptyEl.hidden = true;
 
     const width = this.cloudEl.clientWidth || 960;
-    const { nodes, height } = layoutHotBubbles(this.items, width);
+    const { nodes, height } = layoutHotTags(this.items, width);
+    const cloud = document.createElement("div");
+    cloud.className = "corpus-hot__cloud";
+    cloud.style.height = `${height}px`;
+    cloud.setAttribute("role", "list");
+    cloud.setAttribute("aria-label", "共享语料热词云");
 
-    const svg = d3
-      .select(this.cloudEl)
-      .append("svg")
-      .attr("class", "hot-bubble-svg")
-      .attr("viewBox", `0 0 ${width} ${height}`)
-      .attr("width", "100%")
-      .attr("height", height)
-      .attr("role", "img")
-      .attr("aria-label", "共享语料热词气泡图");
+    nodes.forEach((node, index) => {
+      const active = node.item.keywords === this.selectedKeywords;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `corpus-hot__pill corpus-hot__pill--${node.sizeClass}`;
+      if (node.rank <= 3) {
+        btn.classList.add(`corpus-hot__pill--top${node.rank}`);
+      }
+      if (active) {
+        btn.classList.add("corpus-hot__pill--active");
+      }
+      btn.style.setProperty("--heat", node.scoreRatio.toFixed(3));
+      btn.style.setProperty("--pill-i", String(index));
+      btn.style.left = `${node.x}px`;
+      btn.style.top = `${node.y}px`;
+      btn.dataset.keywords = node.item.keywords;
+      btn.setAttribute("role", "listitem");
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.title = `${node.item.keywords} · 热度 ${node.item.score}`;
 
-    const node = svg
-      .selectAll<SVGGElement, (typeof nodes)[number]>("g.hot-bubble-node")
-      .data(nodes)
-      .join("g")
-      .attr("class", (d) => {
-        const active = d.item.keywords === this.selectedKeywords ? " hot-bubble-node--active" : "";
-        return `hot-bubble-node${active}`;
-      })
-      .attr("data-keywords", (d) => d.item.keywords)
-      .attr("transform", (d) => `translate(${d.x},${d.y})`)
-      .attr("role", "button")
-      .attr("tabindex", 0)
-      .attr("aria-pressed", (d) => (d.item.keywords === this.selectedKeywords ? "true" : "false"))
-      .on("click", (_, d) => {
-        this.toggleKeywords(d.item.keywords);
-      })
-      .on("keydown", (event, d) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        this.toggleKeywords(d.item.keywords);
+      if (node.rank <= 3) {
+        const rank = document.createElement("span");
+        rank.className = "corpus-hot__pill-rank";
+        rank.textContent = String(node.rank);
+        rank.setAttribute("aria-hidden", "true");
+        btn.appendChild(rank);
+      }
+
+      const word = document.createElement("span");
+      word.className = "corpus-hot__pill-word";
+      word.textContent = node.item.keywords;
+      btn.appendChild(word);
+
+      const score = document.createElement("span");
+      score.className = "corpus-hot__pill-score";
+      score.textContent = String(node.item.score);
+      btn.appendChild(score);
+
+      btn.addEventListener("click", () => {
+        this.toggleKeywords(node.item.keywords);
       });
 
-    const body = node
-      .append("g")
-      .attr("class", "hot-bubble-node__body")
-      .style("--hot-delay", (_, i) => `${Math.min(i * 35, 640)}ms`);
+      cloud.appendChild(btn);
+    });
 
-    body
-      .append("circle")
-      .attr("r", (d) => d.r)
-      .attr("class", "hot-bubble-node__disk")
-      .attr("fill", (d) => hotBubbleFill(d.scoreRatio));
+    if (this.selectedKeywords) {
+      cloud.classList.add("corpus-hot__cloud--selected");
+    }
 
-    body
-      .append("text")
-      .attr("class", "hot-bubble-node__label")
-      .attr("text-anchor", "middle")
-      .attr("dominant-baseline", "central")
-      .attr("font-size", (d) => hotBubbleFontSize(d.r))
-      .text((d) => hotBubbleLabel(d.item.keywords, d.r));
-
-    node.append("title").text((d) => `${d.item.keywords}\n热度 ${d.item.score}`);
+    this.cloudEl.appendChild(cloud);
 
     if (!this.resizeObserver) {
       this.resizeObserver = new ResizeObserver(() => {
-        if (this.items.length) void this.renderCloud();
+        if (this.items.length) this.renderCloud();
       });
       this.resizeObserver.observe(this.cloudEl);
     }
@@ -188,25 +181,42 @@ export class CorpusWordCloud {
   }
 
   private syncSelectionState(): void {
-    this.cloudEl.querySelectorAll<SVGGElement>("g.hot-bubble-node").forEach((el) => {
-      const key = el.getAttribute("data-keywords");
-      const active = key !== null && key === this.selectedKeywords;
-      el.classList.toggle("hot-bubble-node--active", active);
+    const cloud = this.cloudEl.querySelector<HTMLElement>(".corpus-hot__cloud");
+    cloud?.classList.toggle("corpus-hot__cloud--selected", this.selectedKeywords !== null);
+
+    this.cloudEl.querySelectorAll<HTMLButtonElement>(".corpus-hot__pill").forEach((el) => {
+      const key = el.dataset.keywords;
+      const active = key !== undefined && key === this.selectedKeywords;
+      el.classList.toggle("corpus-hot__pill--active", active);
       el.setAttribute("aria-pressed", active ? "true" : "false");
     });
   }
 
   private renderDetail(): void {
     this.detailEl.innerHTML = "";
+    this.detailEl.hidden = !this.selectedKeywords;
     if (!this.selectedKeywords) return;
+
     const item = this.items.find((row) => row.keywords === this.selectedKeywords);
     if (!item) return;
+
+    const rank = rankHotItems(this.items).find((node) => node.item.keywords === item.keywords)?.rank;
+
+    const panel = document.createElement("div");
+    panel.className = "corpus-hot__detail-panel";
 
     const hd = document.createElement("div");
     hd.className = "corpus-hot__detail-hd";
 
     const titleWrap = document.createElement("div");
     titleWrap.className = "corpus-hot__detail-heading";
+
+    if (rank !== undefined && rank <= 3) {
+      const badge = document.createElement("span");
+      badge.className = "corpus-hot__detail-rank";
+      badge.textContent = `#${rank}`;
+      titleWrap.appendChild(badge);
+    }
 
     const title = document.createElement("h3");
     title.className = "corpus-hot__detail-title";
@@ -226,7 +236,7 @@ export class CorpusWordCloud {
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "corpus-hot__detail-close";
-    closeBtn.setAttribute("aria-label", "收起代表回复");
+    closeBtn.setAttribute("aria-label", "收起详情");
     closeBtn.textContent = "收起";
     closeBtn.addEventListener("click", () => {
       this.selectKeywords(null);
@@ -256,6 +266,7 @@ export class CorpusWordCloud {
       });
     }
 
-    this.detailEl.append(hd, list);
+    panel.append(hd, list);
+    this.detailEl.appendChild(panel);
   }
 }

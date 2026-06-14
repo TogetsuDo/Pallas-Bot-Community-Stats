@@ -119,7 +119,7 @@ app.innerHTML = `
       <div class="section__intro section__intro--tech">
         <span class="section__tag">CORPUS</span>
         <h2>共享语料热词</h2>
-        <p class="section__legend" data-hot-legend>进入视口后加载热词气泡图…</p>
+        <p class="section__legend" data-hot-legend>进入视口后加载热词云…</p>
       </div>
       <div class="corpus-hot-shell tech-shell">
         <div class="corpus-hot__tabs" data-hot-tabs role="tablist" aria-label="热词统计范围">
@@ -130,19 +130,21 @@ app.innerHTML = `
           <button type="button" class="corpus-hot__tab" data-hot-period="month" role="tab" aria-selected="false">本月</button>
         </div>
         <div data-hot-empty class="corpus-hot__empty" hidden></div>
-        <div data-hot-canvas class="corpus-hot__canvas" aria-label="热词气泡图"></div>
+        <div data-hot-canvas class="corpus-hot__canvas" aria-label="共享语料热词云"></div>
         <div data-hot-detail class="corpus-hot__detail" aria-live="polite"></div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>不上报群号与消息正文；气泡墙仅展示 opt-in 公开的名册与活跃度权重。</p>
-    <p>
-      <a href="https://github.com/PallasBot/Pallas-Bot" target="_blank" rel="noreferrer">Pallas-Bot</a>
-      ·
-      <a href="https://PallasBot.github.io/Pallas-Bot-Docs/" target="_blank" rel="noreferrer">文档</a>
-    </p>
+    <div class="site-footer__inner glass-surface">
+      <p>不上报群号与消息正文；气泡墙仅展示 opt-in 公开的名册与活跃度权重。</p>
+      <p>
+        <a href="https://github.com/PallasBot/Pallas-Bot" target="_blank" rel="noreferrer">Pallas-Bot</a>
+        ·
+        <a href="https://PallasBot.github.io/Pallas-Bot-Docs/" target="_blank" rel="noreferrer">文档</a>
+      </p>
+    </div>
   </footer>
 `;
 
