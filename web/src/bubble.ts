@@ -41,6 +41,7 @@ type SceneRefs = {
   nodeSel: NodeSelection;
   linkSel: LinkSelection;
   clipIds: string[];
+  clipCircleSels: import("d3").Selection<SVGCircleElement, unknown, null, undefined>[];
 };
 
 type MeshCurve = {
@@ -105,8 +106,10 @@ export class BubbleWall {
   private viewRotY = IDLE_ROT_Y;
   private focusBlend = 0;
   private scene: SceneRefs | null = null;
+  private d3Ref: D3Module | null = null;
   private animFrame: number | null = null;
   private sphereSpinRaf: number | null = null;
+  private spherePaintFrame = 0;
   private neighborMap = new Map<string, Set<string>>();
   private isDragging = false;
   private dragPending = false;
@@ -241,7 +244,6 @@ export class BubbleWall {
     this.dragAnchorY = event.clientY;
     this.dragStartRotX = this.viewRotX;
     this.dragStartRotY = this.viewRotY;
-    event.preventDefault();
   };
 
   private onSpherePointerMove = (event: PointerEvent): void => {
@@ -262,14 +264,15 @@ export class BubbleWall {
     const sens = event.pointerType === "touch" ? DRAG_SENS_TOUCH : DRAG_SENS_MOUSE;
     this.viewRotY = this.dragStartRotY + dx * sens;
     this.viewRotX = this.dragStartRotX - dy * sens;
-    void importD3().then((d3) => this.paintSphereScene(d3));
+    this.paintSphereFrame();
     event.preventDefault();
   };
 
   private onSpherePointerUp = (event: PointerEvent): void => {
     if (event.pointerId !== this.dragPointerId) return;
+    const wasDragging = this.isDragging;
     this.dragPending = false;
-    if (this.isDragging) {
+    if (wasDragging) {
       this.endSphereDrag();
       window.setTimeout(() => {
         this.dragMoved = false;
@@ -277,7 +280,24 @@ export class BubbleWall {
       return;
     }
     this.dragPointerId = null;
+    this.handleSphereTap(event);
   };
+
+  private handleSphereTap(event: PointerEvent): void {
+    if (this.layoutMode !== "sphere" || !this.scene || !this.d3Ref || this.dragMoved) return;
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const nodeEl = hit?.closest?.("g.bubble-node[data-bot-key]");
+    if (!(nodeEl instanceof SVGGElement)) return;
+    const botKey = nodeEl.getAttribute("data-bot-key");
+    if (!botKey) return;
+    const node = this.layoutNodes.find((entry) => entry.bot.bot_key === botKey);
+    if (!node || !isBubbleClickable(node.bot)) return;
+    void this.handleNodeClick(this.d3Ref, botKey, nodeEl, node.bot, this.scene.nodeSel);
+  }
+
+  private paintSphereFrame(): void {
+    if (this.d3Ref) this.paintSphereScene(this.d3Ref);
+  }
 
   private endSphereDrag(): void {
     if (this.dragPointerId != null && this.canvasHost.hasPointerCapture(this.dragPointerId)) {
@@ -298,7 +318,7 @@ export class BubbleWall {
       }
       if (!this.activeBotKey && !this.isDragging && !this.dragPending && this.animFrame == null) {
         this.viewRotY += AUTO_SPIN_Y_PER_FRAME;
-        void importD3().then((d3) => this.paintSphereScene(d3));
+        this.paintSphereFrame();
       }
       this.sphereSpinRaf = requestAnimationFrame(tick);
     };
@@ -393,15 +413,18 @@ export class BubbleWall {
     const defs = svg.append("defs");
     const clipPrefix = `bubble-clip-${token}`;
     const clipIds: string[] = [];
+    const clipCircleSels: SceneRefs["clipCircleSels"] = [];
 
     nodes.forEach((node, index) => {
       const clipId = `${clipPrefix}-${index}`;
       clipIds.push(clipId);
-      defs
-        .append("clipPath")
-        .attr("id", clipId)
-        .append("circle")
-        .attr("r", Math.max(0, node.r - 4));
+      clipCircleSels.push(
+        defs
+          .append("clipPath")
+          .attr("id", clipId)
+          .append("circle")
+          .attr("r", Math.max(0, node.r - 4)),
+      );
     });
 
     const stage = svg.append("g").attr("class", "bubble-stage");
@@ -450,6 +473,7 @@ export class BubbleWall {
       .attr("aria-expanded", (d) => (d.bot.bot_key === this.popoverBotKey ? "true" : "false"))
       .on("click", (event, d) => {
         event.stopPropagation();
+        if (this.layoutMode === "sphere") return;
         if (!isBubbleClickable(d.bot) || this.dragMoved) return;
         void this.handleNodeClick(d3, d.bot.bot_key, event.currentTarget as SVGGElement, d.bot, nodeSel);
       })
@@ -473,7 +497,18 @@ export class BubbleWall {
       return `${bot.nickname}\n${bot.online ? "在线" : "离线"} · 活跃度 ${tier}\n${hint}`;
     });
 
-    this.scene = { stageSel: stage, meshLayerSel, meshSel, linkLayerSel: linkLayer, nodeSel, linkSel, clipIds };
+    this.d3Ref = d3;
+    this.spherePaintFrame = 0;
+    this.scene = {
+      stageSel: stage,
+      meshLayerSel,
+      meshSel,
+      linkLayerSel: linkLayer,
+      nodeSel,
+      linkSel,
+      clipIds,
+      clipCircleSels,
+    };
     this.canvasHost.classList.toggle("bubble-canvas--focused", Boolean(this.activeBotKey));
 
     if (this.activeBotKey && this.layoutMode === "sphere") {
@@ -735,8 +770,8 @@ export class BubbleWall {
           group,
           node,
           nodeVisual(node).bodyScale,
-          this.scene!.clipIds,
-          this.canvasHost,
+          this.scene!.clipCircleSels,
+          clipIndexFromGroup(group),
         );
       });
 
@@ -814,6 +849,8 @@ export class BubbleWall {
     const focusNeighbors = focusKey ? this.neighborMap.get(focusKey) : undefined;
     const showNeighbors = Boolean(focusKey && focusNeighbors && this.focusBlend > 0.35);
     const projected = new Map<string, Projected>();
+    const spinOnly = !this.isDragging && !this.activeBotKey && this.animFrame == null;
+    const updateMesh = Boolean(this.scene.meshSel) && (!spinOnly || this.spherePaintFrame++ % 2 === 0);
 
     this.scene.linkLayerSel.style("display", null);
     if (this.scene.meshLayerSel) {
@@ -825,13 +862,11 @@ export class BubbleWall {
       return project(rotated, focal, cx, cy, this.sphereRadius);
     };
 
-    if (this.scene.meshSel) {
+    if (updateMesh && this.scene.meshSel) {
       const sphereR = this.sphereRadius;
-      const meshDepth: { id: string; avgZ: number }[] = [];
       this.scene.meshSel.each((curve, index, groups) => {
         const projectedPts = curve.points.map((point) => projectWorld(point));
         const avgZ = projectedPts.reduce((sum, point) => sum + point.z, 0) / projectedPts.length;
-        meshDepth.push({ id: curve.id, avgZ });
         const d = projectedPts
           .map((point, i) => `${i === 0 ? "M" : "L"}${point.x.toFixed(1)},${point.y.toFixed(1)}`)
           .join(" ");
@@ -848,6 +883,7 @@ export class BubbleWall {
       const point = projected.get(node.id)!;
       return { node, point, bodyScale: point.scale };
     });
+    const nodeDataById = new Map(nodeData.map((item) => [item.node.id, item]));
 
     nodeData.sort((a, b) => a.point.z - b.point.z);
 
@@ -859,7 +895,7 @@ export class BubbleWall {
       .order()
       .attr("transform", (node) => {
         const point = projected.get(node.id)!;
-        return `translate(${point.x},${point.y})`;
+        return `translate(${point.x.toFixed(1)},${point.y.toFixed(1)})`;
       })
       .style("opacity", (node) => {
         const point = projected.get(node.id)!;
@@ -872,22 +908,32 @@ export class BubbleWall {
         }
         return point.opacity;
       })
-      .attr("class", (node) =>
-        nodeClassName(
+      .each((node, index, groups) => {
+        const item = nodeDataById.get(node.id);
+        if (!item) return;
+        const group = d3.select(groups[index]);
+        const point = item.point;
+        const nextClass = nodeClassName(
           node,
           focusKey,
           this.focusBlend,
           true,
-          projected.get(node.id)!.depthClass,
+          point.depthClass,
           showNeighbors ? focusKey : null,
           showNeighbors ? focusNeighbors : undefined,
-        ),
-      )
-      .each((node, index, groups) => {
-        const item = nodeData.find((entry) => entry.node.id === node.id);
-        if (!item) return;
-        const group = d3.select(groups[index]);
-        updateNodeGraphics(d3, group, node, item.bodyScale, this.scene!.clipIds, this.canvasHost);
+        );
+        const currentClass = groups[index].getAttribute("class") ?? "";
+        if (currentClass !== nextClass) {
+          group.attr("class", nextClass);
+        }
+        updateNodeGraphics(
+          d3,
+          group,
+          node,
+          item.bodyScale,
+          this.scene!.clipCircleSels,
+          clipIndexFromGroup(group),
+        );
       });
 
     this.scene.linkSel
@@ -1228,13 +1274,19 @@ function appendNodeBodies(
   });
 }
 
+function clipIndexFromGroup(
+  group: import("d3").Selection<SVGGElement, unknown, null, undefined>,
+): number {
+  return Number(group.attr("data-clip-index"));
+}
+
 function updateNodeGraphics(
   d3: D3Module,
   group: import("d3").Selection<SVGGElement, unknown, null, undefined>,
   node: LayoutNode,
   bodyScale: number,
-  clipIds: string[],
-  canvasHost: HTMLElement,
+  clipCircleSels: import("d3").Selection<SVGCircleElement, unknown, null, undefined>[],
+  clipIndex: number,
 ): void {
   const displayR = node.r * bodyScale;
   const avatarR = Math.max(0, displayR - 4);
@@ -1243,10 +1295,9 @@ function updateNodeGraphics(
   group.select(".bubble-node__pulse").attr("r", node.r + 2);
   group.select(".bubble-node__halo").attr("r", node.r);
 
-  const clipIndex = Number(group.attr("data-clip-index"));
-  const clipId = clipIds[clipIndex];
-  if (clipId) {
-    d3.select(canvasHost).select(`#${clipId} circle`).attr("r", Math.max(0, avatarR));
+  const clipCircle = clipCircleSels[clipIndex];
+  if (clipCircle && !clipCircle.empty()) {
+    clipCircle.attr("r", Math.max(0, avatarR));
   }
 
   const avatar = group.select<SVGImageElement>(".bubble-node__avatar");
@@ -1418,9 +1469,9 @@ function easeCubicInOut(t: number): number {
 
 function buildSphereMeshCurves(sphereRadius: number): MeshCurve[] {
   const curves: MeshCurve[] = [];
-  const segments = 56;
-  const latBands = 5;
-  const lonBands = 8;
+  const segments = 40;
+  const latBands = 4;
+  const lonBands = 6;
 
   for (let band = 1; band < latBands; band++) {
     const lat = -Math.PI / 2 + (band / latBands) * Math.PI;

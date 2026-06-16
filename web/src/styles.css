@@ -1243,6 +1243,14 @@ html[data-theme="light"] .tech-shell::before {
   -webkit-user-select: none;
 }
 
+.bubble-canvas--sphere .bubble-node {
+  will-change: transform, opacity;
+}
+
+.bubble-canvas--sphere .bubble-node--clickable .bubble-node__halo {
+  pointer-events: all;
+}
+
 .bubble-canvas--sphere.bubble-canvas--dragging {
   cursor: grabbing;
 }
