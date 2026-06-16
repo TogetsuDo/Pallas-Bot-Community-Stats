@@ -1,6 +1,6 @@
 export type HotPeriod = "day" | "week" | "month";
 export type HotMode = "fleet" | "pool" | "recent";
-export type HotTab = "fleet" | "pool" | HotPeriod;
+export type HotTab = "fleet" | "pool" | "month";
 
 export type HotCorpusAnswer = {
   answer_keywords: string;
@@ -69,16 +69,38 @@ export type RosterBubble = {
   bots: BubbleBot[];
 };
 
+type HubPrefetchKey = "overview" | "roster";
+
+declare global {
+  interface Window {
+    __PALLAS_HUB_PREFETCH__?: Partial<Record<HubPrefetchKey, Promise<unknown>>>;
+  }
+}
+
+function takePrefetched<T>(key: HubPrefetchKey, fetchFresh: () => Promise<T>): Promise<T> {
+  const hub = window.__PALLAS_HUB_PREFETCH__;
+  const pending = hub?.[key];
+  if (pending) {
+    delete hub[key];
+    return pending as Promise<T>;
+  }
+  return fetchFresh();
+}
+
 export async function fetchOverview(): Promise<MonitorOverview> {
-  const resp = await fetch("/v1/monitor/overview");
-  if (!resp.ok) throw new Error(`overview ${resp.status}`);
-  return resp.json() as Promise<MonitorOverview>;
+  return takePrefetched("overview", async () => {
+    const resp = await fetch("/v1/monitor/overview");
+    if (!resp.ok) throw new Error(`overview ${resp.status}`);
+    return resp.json() as Promise<MonitorOverview>;
+  });
 }
 
 export async function fetchBubbleRoster(): Promise<RosterBubble> {
-  const resp = await fetch("/v1/roster/bubble");
-  if (!resp.ok) throw new Error(`bubble ${resp.status}`);
-  return resp.json() as Promise<RosterBubble>;
+  return takePrefetched("roster", async () => {
+    const resp = await fetch("/v1/roster/bubble");
+    if (!resp.ok) throw new Error(`bubble ${resp.status}`);
+    return resp.json() as Promise<RosterBubble>;
+  });
 }
 
 export async function fetchCorpusHot(tab: HotTab = "fleet", limit = 40): Promise<CorpusHotData> {

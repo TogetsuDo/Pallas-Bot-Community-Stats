@@ -1,3 +1,24 @@
+function dismissBootSplash(): void {
+  const splash = document.getElementById("boot-splash");
+  if (!splash) return;
+  splash.classList.add("boot-splash--hide");
+  splash.setAttribute("aria-busy", "false");
+  const remove = () => splash.remove();
+  splash.addEventListener("transitionend", remove, { once: true });
+  window.setTimeout(remove, 520);
+}
+
+/** 页面壳已渲染：关闭启动屏并淡入主内容 */
+export function markShellReady(): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.body.classList.remove("app-booting");
+      document.body.classList.add("app-ready");
+      dismissBootSplash();
+    });
+  });
+}
+
 export function initSectionMotion(root: ParentNode = document): void {
   const sections = root.querySelectorAll<HTMLElement>(".section[data-reveal]");
   if (!sections.length) return;
@@ -25,8 +46,5 @@ export function initSectionMotion(root: ParentNode = document): void {
 }
 
 export function markAppReady(): void {
-  requestAnimationFrame(() => {
-    document.body.classList.remove("app-booting");
-    document.body.classList.add("app-ready");
-  });
+  markShellReady();
 }

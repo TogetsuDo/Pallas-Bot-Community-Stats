@@ -164,16 +164,19 @@ body {
 }
 
 body.app-booting #app {
-  opacity: 0;
-  transform: translateY(8px);
+  opacity: 0.35;
+  transform: translateY(6px);
+  filter: blur(2px);
 }
 
 body.app-ready #app {
   opacity: 1;
   transform: none;
+  filter: none;
   transition:
-    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .app-backdrop {
@@ -277,6 +280,22 @@ html[data-theme="dark"] .site-header__title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.25s ease;
+}
+
+.site-header__sub--loading {
+  color: color-mix(in srgb, var(--cyan) 55%, var(--muted));
+  animation: header-sub-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes header-sub-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 .site-header__nav {
@@ -1145,6 +1164,41 @@ html[data-theme="light"] .tech-shell::before {
   touch-action: manipulation;
 }
 
+.bubble-canvas--loading::before,
+.bubble-canvas--loading::after {
+  opacity: 0.45;
+}
+
+.bubble-canvas--loading {
+  position: relative;
+}
+
+.bubble-canvas--loading > .bubble-svg {
+  opacity: 0.35;
+  transition: opacity 0.28s ease;
+}
+
+.bubble-canvas--loading .bubble-loading-shimmer {
+  position: absolute;
+  inset: 12% 8%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 10%, transparent) 42%,
+    color-mix(in srgb, var(--cyan) 12%, transparent) 58%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: hot-cloud-shimmer 1.15s ease-in-out infinite;
+}
+
+.bubble-canvas:not(.bubble-canvas--loading) > .bubble-svg {
+  opacity: 1;
+}
+
 .bubble-canvas::before {
   content: "";
   position: absolute;
@@ -1685,6 +1739,8 @@ html[data-theme="light"] .tech-shell::before {
 @media (prefers-reduced-motion: reduce) {
   body.app-booting #app,
   body.app-ready #app,
+  .site-header__sub--loading,
+  .bubble-canvas--loading .bubble-loading-shimmer,
   .section,
   .section--visible,
   .hero-dashboard__inner::before,

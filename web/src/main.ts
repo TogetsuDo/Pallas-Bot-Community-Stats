@@ -1,6 +1,6 @@
 import { fetchBubbleRoster, fetchCorpusHot, fetchOverview, formatNum } from "./api";
 import brandMarkUrl from "./assets/favicon.png?url";
-import { initSectionMotion, markAppReady } from "./motion";
+import { initSectionMotion, markShellReady } from "./motion";
 import {
   renderHeroMetrics,
   renderHeroMetricsError,
@@ -83,7 +83,9 @@ app.innerHTML = `
       </div>
       <div class="bubble-shell tech-shell">
         <div data-bubble-empty class="bubble-empty" hidden></div>
-        <div data-bubble-canvas class="bubble-canvas"></div>
+        <div data-bubble-canvas class="bubble-canvas bubble-canvas--loading">
+          <div class="bubble-loading-shimmer" aria-hidden="true"></div>
+        </div>
       </div>
       <div class="bot-list">
         <div class="bot-list__hd">
@@ -125,8 +127,6 @@ app.innerHTML = `
         <div class="corpus-hot__tabs" data-hot-tabs role="tablist" aria-label="热词统计范围">
           <button type="button" class="corpus-hot__tab corpus-hot__tab--active" data-hot-period="fleet" role="tab" aria-selected="true">机群</button>
           <button type="button" class="corpus-hot__tab" data-hot-period="pool" role="tab" aria-selected="false">高频池</button>
-          <button type="button" class="corpus-hot__tab" data-hot-period="day" role="tab" aria-selected="false">今日</button>
-          <button type="button" class="corpus-hot__tab" data-hot-period="week" role="tab" aria-selected="false">本周</button>
           <button type="button" class="corpus-hot__tab" data-hot-period="month" role="tab" aria-selected="false">本月</button>
         </div>
         <div data-hot-empty class="corpus-hot__empty" hidden></div>
@@ -149,8 +149,10 @@ app.innerHTML = `
 `;
 
 bindHubThemeToggle();
+markShellReady();
 
 const headerSub = document.querySelector<HTMLElement>("[data-header-sub]")!;
+headerSub.classList.add("site-header__sub--loading");
 const overviewRoot = document.querySelector<HTMLElement>("[data-overview-root]")!;
 const heroMetrics = document.querySelector<HTMLElement>("[data-hero-metrics]")!;
 const header = document.querySelector<HTMLElement>("[data-site-header]")!;
@@ -178,6 +180,7 @@ async function bootstrap(): Promise<void> {
   wall.observe(async () => {
     const data = await rosterPromise;
     headerSub.textContent = `在线 ${formatNum(data.bots_online)} / ${formatNum(data.bots_total)} 只公开牛`;
+    headerSub.classList.remove("site-header__sub--loading");
     return data.bots;
   });
 
@@ -215,11 +218,11 @@ async function loadOverviewPanels(overviewReq: Promise<Awaited<ReturnType<typeof
     renderOverview(overviewRoot, overview);
     const dep = overview.deployments;
     headerSub.textContent = `在线 ${formatNum(dep.deployments_online)} 套 · ${formatNum(dep.bots_online_sum)} 只牛`;
+    headerSub.classList.remove("site-header__sub--loading");
   } catch (err) {
     renderHeroMetricsError(heroMetrics);
     renderOverviewError(overviewRoot, err instanceof Error ? err.message : String(err));
     headerSub.textContent = "概览暂不可用";
-  } finally {
-    markAppReady();
+    headerSub.classList.remove("site-header__sub--loading");
   }
 }

@@ -313,6 +313,7 @@ export class BubbleWall {
   }
 
   private async refresh(load: () => Promise<BubbleBot[]>): Promise<void> {
+    this.canvasHost.classList.add("bubble-canvas--loading");
     try {
       const bots = await load();
       await this.render(bots);
@@ -322,6 +323,8 @@ export class BubbleWall {
       this.canvasHost.innerHTML = "";
       this.onBotsChange?.([]);
       this.hidePopover();
+    } finally {
+      this.canvasHost.classList.remove("bubble-canvas--loading");
     }
   }
 
@@ -329,6 +332,7 @@ export class BubbleWall {
     const token = ++this.renderToken;
     const d3 = await importD3();
     if (token !== this.renderToken) return;
+    this.canvasHost.querySelector(".bubble-loading-shimmer")?.remove();
     this.lastBots = bots;
     this.updateLegend(bots);
 

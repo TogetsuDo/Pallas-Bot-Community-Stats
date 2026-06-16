@@ -4,8 +4,6 @@ import { rankHotItems } from "./hotBubbleLayout";
 const TAB_LABELS: Record<HotTab, string> = {
   fleet: "机群",
   pool: "高频池",
-  day: "今日",
-  week: "本周",
   month: "本月",
 };
 

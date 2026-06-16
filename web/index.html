@@ -6,8 +6,140 @@
     <meta name="description" content="Pallas 牛牛社区中心：公开名册气泡墙与部署在线统计。" />
     <title>Pallas 社区中心</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --boot-bg: #050910;
+        --boot-text: #8fa3b8;
+        --boot-accent: #fe7d37;
+        --boot-cyan: #4cc3ff;
+      }
+      html[data-boot-theme="light"] {
+        color-scheme: light;
+        --boot-bg: #eef2f7;
+        --boot-text: #5a6a7d;
+        --boot-accent: #e56a22;
+        --boot-cyan: #0b7ec8;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--boot-bg);
+      }
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background:
+          radial-gradient(ellipse 80% 50% at 8% -12%, rgba(76, 195, 255, 0.16), transparent 58%),
+          radial-gradient(ellipse 60% 44% at 92% -6%, rgba(254, 125, 55, 0.12), transparent 54%),
+          var(--boot-bg);
+        color: var(--boot-text);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+        transition:
+          opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+          visibility 0.45s;
+      }
+      #boot-splash.boot-splash--hide {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .boot-splash__logo {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        animation: boot-logo-pulse 1.6s ease-in-out infinite;
+      }
+      .boot-splash__ring {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 2px solid color-mix(in srgb, var(--boot-text) 22%, transparent);
+        border-top-color: var(--boot-accent);
+        border-right-color: var(--boot-cyan);
+        animation: boot-spin 0.85s linear infinite;
+      }
+      .boot-splash__text {
+        margin: 0;
+        font-size: 0.92rem;
+        letter-spacing: 0.02em;
+      }
+      .boot-splash__dots::after {
+        content: "";
+        animation: boot-dots 1.2s steps(4, end) infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes boot-logo-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.04);
+          opacity: 0.88;
+        }
+      }
+      @keyframes boot-dots {
+        0% {
+          content: "";
+        }
+        25% {
+          content: ".";
+        }
+        50% {
+          content: "..";
+        }
+        75%,
+        100% {
+          content: "...";
+        }
+      }
+    </style>
+    <script>
+      (function () {
+        try {
+          var mode = localStorage.getItem("pallas-hub-theme");
+          var dark =
+            mode === "dark" ||
+            (mode !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (!dark) document.documentElement.dataset.bootTheme = "light";
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+    </script>
+    <script>
+      (function () {
+        var hub = (window.__PALLAS_HUB_PREFETCH__ = {});
+        function arm(key, url) {
+          hub[key] = fetch(url).then(function (resp) {
+            if (!resp.ok) throw new Error(key + " " + resp.status);
+            return resp.json();
+          });
+        }
+        arm("overview", "/v1/monitor/overview");
+        arm("roster", "/v1/roster/bubble");
+      })();
+    </script>
   </head>
   <body>
+    <div id="boot-splash" role="status" aria-live="polite" aria-busy="true" aria-label="正在加载社区中心">
+      <img class="boot-splash__logo" src="/favicon.png" width="48" height="48" alt="" />
+      <div class="boot-splash__ring" aria-hidden="true"></div>
+      <p class="boot-splash__text">正在载入社区中心<span class="boot-splash__dots" aria-hidden="true"></span></p>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
