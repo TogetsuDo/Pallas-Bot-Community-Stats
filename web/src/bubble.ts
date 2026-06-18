@@ -1248,7 +1248,7 @@ function appendNodeBodies(
       g.append("circle")
         .attr("class", "bubble-node__avatar-bg")
         .attr("r", r)
-        .attr("fill", "var(--bubble-avatar-fill, #1a2433)");
+        .attr("fill", "var(--bubble-avatar-fill, #1a1a26)");
       g.append("image")
         .attr("class", "bubble-node__avatar")
         .attr("href", bot.avatar_url)
@@ -1264,7 +1264,7 @@ function appendNodeBodies(
     g.append("circle")
       .attr("class", "bubble-node__avatar-fallback")
       .attr("r", r)
-      .attr("fill", "var(--bubble-fallback-fill, #3d4556)");
+      .attr("fill", "var(--bubble-fallback-fill, #2a2a3a)");
     g.append("text")
       .attr("class", "bubble-node__avatar-fallback-text")
       .attr("text-anchor", "middle")
