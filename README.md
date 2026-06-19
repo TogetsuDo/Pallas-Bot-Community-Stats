@@ -1,6 +1,10 @@
-# Pallas Community Stats
+<p align="center">
+  <img src="./assets/brand-avatar.png" width="220" height="220" alt="Pallas Community Stats">
+</p>
 
-Pallas-Bot **opt-in** 社区统计与**共享语料**中心：接收各部署自愿上报的心跳，提供公开聚合 API 与 Bot 外接语料库（`/v1/corpus/*`）。
+<h1 align="center">Pallas Community Stats</h1>
+
+<p align="center">Pallas-Bot <b>opt-in</b> 社区统计与<b>共享语料</b>中心：接收各部署自愿上报的心跳，提供公开聚合 API 与 Bot 外接语料库（<code>/v1/corpus/*</code>）。</p>
 
 - Bot 侧：`community_stats` 插件 + `[corpus]` auto enroll（见 [Pallas-Bot](https://github.com/PallasBot/Pallas-Bot)）
 - HTTP 约定：[docs/API.md](docs/API.md) · 客户端集成：[docs/client-integration.md](docs/client-integration.md)
