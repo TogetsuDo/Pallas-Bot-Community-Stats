@@ -18,14 +18,14 @@ export function Hero() {
       <div className="relative mx-auto max-w-[var(--content-max)] px-[var(--page-gutter)] pb-16 pt-14 sm:pb-20 sm:pt-20">
         <img
           src={brandMarkUrl}
-          alt="Pallas"
+          alt="Pallas-Bot"
           width={88}
           height={88}
           className="mb-6 rounded-[18px] shadow-[0_12px_40px_color-mix(in_srgb,var(--accent)_22%,transparent)]"
           decoding="async"
         />
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[color-mix(in_srgb,var(--accent)_85%,white)]">
-          Pallas
+          Pallas-Bot
         </p>
         <h1 className="mb-4 max-w-xl text-4xl font-bold tracking-tight text-[var(--text)] sm:text-5xl">
           社区中心

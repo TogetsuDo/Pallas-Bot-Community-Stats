@@ -35,7 +35,7 @@ export function SiteHeader({
         <div className="flex min-w-0 items-center gap-2.5">
           <img src={brandMarkUrl} alt="" width={28} height={28} className="rounded-lg" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-[var(--text)]">Pallas 社区中心</div>
+            <div className="truncate text-sm font-semibold text-[var(--text)]">Pallas-Bot 社区中心</div>
             <div
               className={cn(
                 "truncate text-xs text-[var(--text-muted)]",

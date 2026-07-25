@@ -46,7 +46,7 @@ app.innerHTML = `
     <div class="site-header__brand">
       <img class="site-header__logo" src="${brandMarkUrl}" width="32" height="32" alt="" />
       <div>
-        <div class="site-header__title">Pallas 社区中心</div>
+        <div class="site-header__title">Pallas-Bot 社区中心</div>
         <div class="site-header__sub" data-header-sub>同步社区数据…</div>
       </div>
     </div>
