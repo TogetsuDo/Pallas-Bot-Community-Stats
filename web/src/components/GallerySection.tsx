@@ -57,11 +57,21 @@ function MessageCard({ post }: { post: GalleryPost }) {
         </div>
       </div>
       {post.text ? <p className="gallery-card__bubble">{post.text}</p> : null}
-      {post.image_url ? (
-        <img className="gallery-card__shot" src={post.image_url} alt="" loading="lazy" />
-      ) : null}
     </article>
   );
+}
+
+function ImageTile({ post }: { post: GalleryPost }) {
+  return (
+    <article className="gallery-shot" title={shortTime(post.created_unix)}>
+      <img src={post.image_url!} alt="" loading="lazy" />
+    </article>
+  );
+}
+
+function GalleryItem({ post }: { post: GalleryPost }) {
+  if (post.image_url) return <ImageTile post={post} />;
+  return <MessageCard post={post} />;
 }
 
 export function GallerySection() {
@@ -159,7 +169,7 @@ export function GallerySection() {
           </p>
           <h2 className="text-xl font-semibold text-[var(--text)]">社区投稿</h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            维护者从控制台投稿的模拟发言；小卡片自动轮换，正文碎片轻轻飘落。
+            纯文字以模拟发言卡轮换；带图投稿直接展示截图。正文碎片会轻轻飘落。
           </p>
         </div>
 
@@ -202,7 +212,7 @@ export function GallerySection() {
                   data-focus={i === 0 ? "1" : "0"}
                   data-enter={reduceMotion ? "0" : "1"}
                 >
-                  <MessageCard post={post} />
+                  <GalleryItem post={post} />
                 </div>
               ))}
             </div>

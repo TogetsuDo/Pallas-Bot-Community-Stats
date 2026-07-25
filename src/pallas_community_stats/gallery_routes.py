@@ -134,9 +134,7 @@ def build_gallery_router(
         body = (text or "").strip()
         if len(body) > MAX_TEXT_CHARS:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text too long")
-        nick = (nickname or "").strip()
-        if not nick:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="nickname required")
+        nick = (nickname or "").strip() or "牛牛"
 
         now = int(time.time())
         hour_n = store.count_since(deployment_id=deployment_id, since_unix=now - 3600)

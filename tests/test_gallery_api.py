@@ -54,10 +54,41 @@ def test_gallery_create_list_and_delete(tmp_path: Path) -> None:
     assert listed2.json()["posts"] == []
 
 
-def test_gallery_requires_nickname_and_content(tmp_path: Path) -> None:
+def test_gallery_defaults_nickname_and_requires_content(tmp_path: Path) -> None:
     client = _client(tmp_path)
-    resp = client.post(
+    empty = client.post(
         "/v1/gallery/posts",
-        data={"deployment_id": "dep-1", "text": "hi", "nickname": ""},
+        data={"deployment_id": "dep-1", "text": "", "nickname": ""},
     )
-    assert resp.status_code == 400
+    assert empty.status_code == 400
+
+    created = client.post(
+        "/v1/gallery/posts",
+        data={"deployment_id": "dep-1", "text": "仅正文", "nickname": ""},
+    )
+    assert created.status_code == 200, created.text
+    listed = client.get("/v1/gallery/posts")
+    assert listed.json()["posts"][0]["nickname"] == "牛牛"
+
+
+def test_gallery_image_only_without_bot(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    png = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00"
+        b"\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    created = client.post(
+        "/v1/gallery/posts",
+        data={"deployment_id": "dep-img", "text": "", "nickname": ""},
+        files={"image": ("shot.png", png, "image/png")},
+    )
+    assert created.status_code == 200, created.text
+    listed = client.get("/v1/gallery/posts")
+    post = listed.json()["posts"][0]
+    assert post["nickname"] == "牛牛"
+    assert post["qq"] is None
+    assert post["image_url"]
+    img = client.get(post["image_url"].replace("http://testserver", ""))
+    assert img.status_code == 200
+    assert img.content.startswith(b"\x89PNG")
