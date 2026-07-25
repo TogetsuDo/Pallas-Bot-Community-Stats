@@ -58,10 +58,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="FEDERATION_ONBOARDING_ENABLED",
     )
-    federation_onboarding_publish_secret: bool = Field(
-        default=True,
-        validation_alias="FEDERATION_ONBOARDING_PUBLISH_SECRET",
-    )
+    gallery_enabled: bool = Field(default=True, validation_alias="GALLERY_ENABLED")
+    gallery_media_dir: Path = Field(default=Path("data/gallery"), validation_alias="GALLERY_MEDIA_DIR")
+    gallery_per_hour: int = Field(default=30, ge=1, le=1000, validation_alias="GALLERY_PER_HOUR")
+    gallery_per_day: int = Field(default=10, ge=1, le=10_000, validation_alias="GALLERY_PER_DAY")
 
 
 @lru_cache(maxsize=1)

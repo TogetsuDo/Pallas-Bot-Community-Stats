@@ -26,6 +26,8 @@ from pallas_community_stats.federation_onboarding import (
     federation_onboarding_enabled,
 )
 from pallas_community_stats.federation_onboarding_models import FederationOnboardingResponse
+from pallas_community_stats.gallery_routes import build_gallery_router
+from pallas_community_stats.gallery_store import GalleryStore
 from pallas_community_stats.hub_routes import register_hub_routes
 from pallas_community_stats.models import (
     BubbleBotPublic,
@@ -84,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = StatsStore(cfg.db_path)
     corpus_store = CorpusStore(cfg.db_path)
     roster_store = RosterStore(cfg.db_path)
+    gallery_store = GalleryStore(cfg.db_path, media_root=cfg.gallery_media_dir)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -339,6 +342,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         )
 
+    if cfg.gallery_enabled:
+        app.include_router(
+            build_gallery_router(
+                store=gallery_store,
+                corpus_store=corpus_store,
+                settings=cfg,
+            )
+        )
+
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_request, exc: HTTPException):
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
@@ -347,5 +359,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = store
     app.state.corpus_store = corpus_store
     app.state.roster_store = roster_store
+    app.state.gallery_store = gallery_store
     register_hub_routes(app)
     return app

@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Pallas 牛牛社区中心：公开名册气泡墙与部署在线统计。" />
     <title>Pallas 社区中心</title>
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/png" href="/assets/brand-avatar.png" />
     <style>
       :root {
         color-scheme: dark;
-        --boot-bg: #060608;
+        --boot-bg: #0f0f12;
         --boot-text: #a1a1aa;
-        --boot-accent: #38bdf8;
-        --boot-cyan: #818cf8;
+        --boot-accent: #a78bfa;
+        --boot-cyan: #c4b5fd;
       }
       html[data-boot-theme="light"] {
         color-scheme: light;
-        --boot-bg: #f4f4f5;
-        --boot-text: #64748b;
-        --boot-accent: #0284c7;
-        --boot-cyan: #4f46e5;
+        --boot-bg: #f7f7f8;
+        --boot-text: #71717a;
+        --boot-accent: #7c3aed;
+        --boot-cyan: #8b5cf6;
       }
       html,
       body {
@@ -37,8 +37,8 @@
         justify-content: center;
         gap: 18px;
         background:
-          radial-gradient(ellipse 80% 50% at 8% -12%, rgba(56, 189, 248, 0.16), transparent 58%),
-          radial-gradient(ellipse 60% 44% at 92% -6%, rgba(129, 140, 248, 0.12), transparent 54%),
+          radial-gradient(ellipse 80% 50% at 8% -12%, rgba(167, 139, 250, 0.16), transparent 58%),
+          radial-gradient(ellipse 60% 44% at 92% -6%, rgba(196, 181, 253, 0.12), transparent 54%),
           var(--boot-bg);
         color: var(--boot-text);
         font-family: "Poppins", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -136,11 +136,11 @@
   </head>
   <body>
     <div id="boot-splash" role="status" aria-live="polite" aria-busy="true" aria-label="正在加载社区中心">
-      <img class="boot-splash__logo" src="/favicon.png" width="48" height="48" alt="" />
+      <img class="boot-splash__logo" src="/assets/brand-avatar.png" width="48" height="48" alt="" />
       <div class="boot-splash__ring" aria-hidden="true"></div>
       <p class="boot-splash__text">正在载入社区中心<span class="boot-splash__dots" aria-hidden="true"></span></p>
     </div>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

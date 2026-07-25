@@ -1,0 +1,341 @@
+/* Aligned with Pallas-Bot-WebUI corpus-hot styles */
+
+.corpus-hot__tabs {
+  margin-bottom: 12px;
+  max-width: 100%;
+}
+
+.corpus-hot__tabs [role="tab"]:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.corpus-hot__status {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.corpus-hot__canvas {
+  position: relative;
+  width: 100%;
+}
+
+.corpus-hot__canvas--loading .corpus-hot__cloud {
+  opacity: 0.32;
+  filter: blur(1px);
+  transition:
+    opacity 0.22s ease,
+    filter 0.22s ease;
+}
+
+.corpus-hot__canvas--loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 8%, transparent) 42%,
+    color-mix(in srgb, var(--accent) 10%, transparent) 58%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: hot-cloud-shimmer 1.15s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.corpus-hot__cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+  transition: opacity 0.24s ease;
+}
+
+.corpus-hot__cloud--tab-enter .corpus-hot__pill {
+  animation: hot-pill-tab-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--pill-i, 0) * 20ms);
+}
+
+.corpus-hot__cloud--selected .corpus-hot__pill:not(.corpus-hot__pill--active) {
+  opacity: 0.38;
+}
+
+.corpus-hot__pill {
+  --heat: 0.5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  border-radius: var(--radius-control, 8px);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) calc(var(--heat) * 10%), var(--bg-deep, var(--bg)));
+  color: color-mix(in srgb, var(--text) 88%, var(--text-muted));
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.corpus-hot__pill:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) calc(var(--heat) * 16%), var(--bg-deep, var(--bg)));
+}
+
+.corpus-hot__pill--top1,
+.corpus-hot__pill--top2,
+.corpus-hot__pill--top3 {
+  font-weight: 600;
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) calc(18% + var(--heat) * 22%), var(--border));
+  background: color-mix(in srgb, var(--accent) calc(14% + var(--heat) * 14%), var(--bg-deep, var(--bg)));
+}
+
+.corpus-hot__pill--top1 {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-deep, var(--bg)));
+}
+
+.corpus-hot__pill--active,
+.corpus-hot__cloud--selected .corpus-hot__pill--active {
+  opacity: 1;
+  transform: translateY(-1px);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-elev, var(--bg-soft)));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.corpus-hot__pill:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.corpus-hot__pill--xs {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.corpus-hot__pill--sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.corpus-hot__pill--md {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.corpus-hot__pill--lg {
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.corpus-hot__pill--xl {
+  padding: 9px 16px;
+  font-size: 15px;
+}
+
+.corpus-hot__pill-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  font-size: 0.7em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.corpus-hot__pill--top1 .corpus-hot__pill-rank {
+  background: var(--accent);
+  color: #fff;
+}
+
+.corpus-hot__pill--top2 .corpus-hot__pill-rank,
+.corpus-hot__pill--top3 .corpus-hot__pill-rank {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+  color: color-mix(in srgb, var(--accent) 88%, var(--text));
+}
+
+.corpus-hot__pill-word {
+  min-width: 0;
+  max-width: min(240px, 72vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.corpus-hot__pill-score {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text-muted);
+  font-size: 0.7em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme="light"] .corpus-hot__pill {
+  background: color-mix(in srgb, var(--accent) calc(var(--heat) * 8%), var(--bg-elev, #fff));
+}
+
+html[data-theme="light"] .corpus-hot__pill--top1,
+html[data-theme="light"] .corpus-hot__pill--top2,
+html[data-theme="light"] .corpus-hot__pill--top3 {
+  background: color-mix(in srgb, var(--accent) calc(12% + var(--heat) * 10%), var(--bg-elev, #fff));
+  border-color: color-mix(in srgb, var(--accent) calc(20% + var(--heat) * 16%), transparent);
+}
+
+html[data-theme="light"] .corpus-hot__pill--top1 {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-elev, #fff));
+  border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+}
+
+html[data-theme="light"] .corpus-hot__pill-score {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+@keyframes hot-pill-tab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hot-cloud-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+.corpus-hot__detail {
+  margin-top: 12px;
+}
+
+.corpus-hot__detail-panel {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-deep, var(--bg));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.corpus-hot__detail-hd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.corpus-hot__detail-heading {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.corpus-hot__detail-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.corpus-hot__detail-close {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.corpus-hot__detail-close:hover {
+  border-color: var(--border-strong, var(--border));
+  color: var(--text);
+}
+
+.corpus-hot__detail-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  word-break: break-word;
+  color: var(--text);
+}
+
+.corpus-hot__detail-meta {
+  margin: 0;
+  flex-basis: 100%;
+  font-size: 12px;
+}
+
+.corpus-hot__reply-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.corpus-hot__reply {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.corpus-hot__reply-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.corpus-hot__reply-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+
+.corpus-hot__reply--empty {
+  font-size: 13px;
+}
