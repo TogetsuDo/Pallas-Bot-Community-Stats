@@ -27,6 +27,7 @@ from pallas_community_stats.federation_onboarding import (
 )
 from pallas_community_stats.federation_onboarding_models import FederationOnboardingResponse
 from pallas_community_stats.gallery_admin_routes import build_gallery_admin_router
+from pallas_community_stats.gallery_censor import build_baidu_censor
 from pallas_community_stats.gallery_routes import build_gallery_router
 from pallas_community_stats.gallery_store import GalleryStore
 from pallas_community_stats.hub_routes import register_hub_routes
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     corpus_store = CorpusStore(cfg.db_path)
     roster_store = RosterStore(cfg.db_path)
     gallery_store = GalleryStore(cfg.db_path, media_root=cfg.gallery_media_dir)
+    gallery_censor = build_baidu_censor(cfg)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -349,6 +351,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 store=gallery_store,
                 corpus_store=corpus_store,
                 settings=cfg,
+                censor=gallery_censor,
             )
         )
         app.include_router(
@@ -367,5 +370,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.corpus_store = corpus_store
     app.state.roster_store = roster_store
     app.state.gallery_store = gallery_store
+    app.state.gallery_censor = gallery_censor
     register_hub_routes(app)
     return app

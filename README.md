@@ -19,7 +19,7 @@
 | 公开统计 | `GET /v1/stats` |
 | 监控聚合 | `GET /v1/monitor/overview` |
 | 气泡名册 | `GET /v1/roster/bubble` |
-| 社区投稿 | `GET` / `POST` / `DELETE` `/v1/gallery/posts`；运维 `/admin` + `/v1/gallery/admin/*` |
+| 社区投稿 | `GET` / `POST` / `DELETE` `/v1/gallery/posts`；运维 `/admin` + `/v1/gallery/admin/*`；可选百度机审 |
 | 心跳 | `POST /v1/heartbeat` |
 | 健康检查 | `GET /health` |
 | 语料 enroll | `POST /v1/corpus/enroll` |

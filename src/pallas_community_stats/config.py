@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     gallery_per_hour: int = Field(default=30, ge=1, le=1000, validation_alias="GALLERY_PER_HOUR")
     gallery_per_day: int = Field(default=10, ge=1, le=10_000, validation_alias="GALLERY_PER_DAY")
     gallery_admin_secret: str = Field(default="", validation_alias="GALLERY_ADMIN_SECRET")
+    baidu_censor_api_key: str = Field(default="", validation_alias="BAIDU_CENSOR_API_KEY")
+    baidu_censor_secret_key: str = Field(default="", validation_alias="BAIDU_CENSOR_SECRET_KEY")
+    gallery_censor_image: bool = Field(default=True, validation_alias="GALLERY_CENSOR_IMAGE")
+    gallery_censor_on_error: str = Field(default="pending", validation_alias="GALLERY_CENSOR_ON_ERROR")
 
 
 @lru_cache(maxsize=1)

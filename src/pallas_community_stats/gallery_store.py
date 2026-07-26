@@ -65,6 +65,10 @@ class GalleryStore:
                 "CREATE INDEX IF NOT EXISTS idx_gallery_posts_deployment "
                 "ON gallery_posts(deployment_id, created_unix DESC)"
             )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_gallery_posts_status_created "
+                "ON gallery_posts(status, created_unix DESC)"
+            )
             conn.commit()
 
     def count_since(self, *, deployment_id: str, since_unix: int) -> int:
@@ -93,6 +97,7 @@ class GalleryStore:
         avatar_url: str,
         image_relpath: str | None,
         created_unix: int | None = None,
+        status: str = "published",
     ) -> GalleryPostRow:
         dep = (deployment_id or "").strip().lower()
         if not dep:
@@ -102,6 +107,9 @@ class GalleryStore:
         src = (source or "manual").strip() or "manual"
         if src not in {"manual", "local_corpus"}:
             src = "manual"
+        st = (status or "published").strip() or "published"
+        if st not in {"published", "pending", "hidden"}:
+            st = "published"
         row = GalleryPostRow(
             id=post_id,
             deployment_id=dep,
@@ -112,7 +120,7 @@ class GalleryStore:
             nickname=(nickname or "").strip()[:64],
             avatar_url=(avatar_url or "").strip()[:512],
             image_path=image_relpath,
-            status="published",
+            status=st,
             created_unix=now,
         )
         with self._lock, self._connect() as conn:
@@ -172,7 +180,22 @@ class GalleryStore:
             cur = conn.execute(
                 """
                 UPDATE gallery_posts SET status = 'hidden'
-                WHERE id = ? AND status = 'published'
+                WHERE id = ? AND status IN ('published', 'pending')
+                """,
+                (pid,),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
+    def approve_post(self, *, post_id: str) -> bool:
+        pid = (post_id or "").strip()
+        if not pid:
+            return False
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                """
+                UPDATE gallery_posts SET status = 'published'
+                WHERE id = ? AND status = 'pending'
                 """,
                 (pid,),
             )
@@ -186,9 +209,29 @@ class GalleryStore:
         before_unix: int | None = None,
         deployment_id: str | None = None,
     ) -> list[GalleryPostRow]:
+        return self.list_by_status(
+            statuses=("published",),
+            limit=limit,
+            before_unix=before_unix,
+            deployment_id=deployment_id,
+        )
+
+    def list_by_status(
+        self,
+        *,
+        statuses: tuple[str, ...],
+        limit: int = 48,
+        before_unix: int | None = None,
+        deployment_id: str | None = None,
+    ) -> list[GalleryPostRow]:
         lim = max(1, min(int(limit), 100))
+        allowed = [s for s in statuses if s in {"published", "pending", "hidden"}]
+        if not allowed:
+            return []
         params: list[object] = []
-        where = ["status = 'published'"]
+        placeholders = ", ".join("?" for _ in allowed)
+        where = [f"status IN ({placeholders})"]
+        params.extend(allowed)
         if before_unix is not None:
             where.append("created_unix < ?")
             params.append(int(before_unix))

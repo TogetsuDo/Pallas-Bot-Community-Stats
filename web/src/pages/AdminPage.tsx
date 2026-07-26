@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import {
+  approveGalleryAdminPost,
   deleteGalleryAdminPost,
   fetchGalleryAdminPosts,
   fetchGalleryAdminStatus,
   loginGalleryAdmin,
   logoutGalleryAdmin,
+  rejectGalleryAdminPost,
+  type GalleryAdminListFilter,
   type GalleryAdminPost,
 } from "@/api/galleryAdmin";
 import { Button } from "@/components/ui/button";
@@ -33,13 +36,20 @@ function truncate(text: string, max = 80): string {
 
 function AdminPostRow({
   post,
+  mode,
   busy,
   onDelete,
+  onApprove,
+  onReject,
 }: {
   post: GalleryAdminPost;
+  mode: GalleryAdminListFilter;
   busy: boolean;
   onDelete: (id: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
 }) {
+  const pending = post.status === "pending" || mode === "pending";
   return (
     <li className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-3 sm:px-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -52,22 +62,55 @@ function AdminPostRow({
                 有图
               </span>
             ) : null}
+            {pending ? (
+              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-300">待审</span>
+            ) : null}
           </div>
           <p className="mt-1 text-sm leading-relaxed text-[var(--text)]">
             {post.text ? truncate(post.text) : post.has_image ? "（仅图片）" : "（空）"}
           </p>
+          {post.image_url && post.has_image ? (
+            <a
+              href={post.image_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]"
+            >
+              <img src={post.image_url} alt="" className="max-h-36 max-w-full object-contain" loading="lazy" />
+            </a>
+          ) : null}
           <p className="mt-1 truncate font-mono text-[11px] text-[var(--text-muted)]">{post.id}</p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-          disabled={busy}
-          onClick={() => onDelete(post.id)}
-        >
-          删除
-        </Button>
+        <div className="flex shrink-0 flex-row gap-2 sm:flex-col">
+          {pending ? (
+            <>
+              <Button type="button" size="sm" disabled={busy} onClick={() => onApprove(post.id)}>
+                通过
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                disabled={busy}
+                onClick={() => onReject(post.id)}
+              >
+                拒绝
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              disabled={busy}
+              onClick={() => onDelete(post.id)}
+            >
+              删除
+            </Button>
+          )}
+        </div>
       </div>
     </li>
   );
@@ -79,6 +122,7 @@ export function AdminPage() {
   const [secret, setSecret] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tab, setTab] = useState<GalleryAdminListFilter>("published");
 
   const status = useQuery({
     queryKey: ["gallery-admin-status"],
@@ -88,8 +132,8 @@ export function AdminPage() {
   });
 
   const posts = useQuery({
-    queryKey: ["gallery-admin-posts"],
-    queryFn: () => fetchGalleryAdminPosts(48),
+    queryKey: ["gallery-admin-posts", tab],
+    queryFn: () => fetchGalleryAdminPosts(48, { status: tab }),
     enabled: Boolean(status.data?.authenticated),
     staleTime: 15_000,
   });
@@ -115,12 +159,26 @@ export function AdminPage() {
     onError: (err: Error) => setActionError(err.message),
   });
 
+  const invalidatePosts = async () => {
+    setActionError(null);
+    await queryClient.invalidateQueries({ queryKey: ["gallery-admin-posts"] });
+  };
+
   const remove = useMutation({
     mutationFn: (id: string) => deleteGalleryAdminPost(id),
-    onSuccess: async () => {
-      setActionError(null);
-      await queryClient.invalidateQueries({ queryKey: ["gallery-admin-posts"] });
-    },
+    onSuccess: () => void invalidatePosts(),
+    onError: (err: Error) => setActionError(err.message),
+  });
+
+  const approve = useMutation({
+    mutationFn: (id: string) => approveGalleryAdminPost(id),
+    onSuccess: () => void invalidatePosts(),
+    onError: (err: Error) => setActionError(err.message),
+  });
+
+  const reject = useMutation({
+    mutationFn: (id: string) => rejectGalleryAdminPost(id),
+    onSuccess: () => void invalidatePosts(),
     onError: (err: Error) => setActionError(err.message),
   });
 
@@ -134,8 +192,18 @@ export function AdminPage() {
     remove.mutate(id);
   };
 
+  const onApprove = (id: string) => {
+    approve.mutate(id);
+  };
+
+  const onReject = (id: string) => {
+    if (!window.confirm("确定拒绝这条待审投稿？")) return;
+    reject.mutate(id);
+  };
+
   const enabled = status.data?.enabled ?? false;
   const authenticated = status.data?.authenticated ?? false;
+  const busy = remove.isPending || approve.isPending || reject.isPending;
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
@@ -187,7 +255,7 @@ export function AdminPage() {
             className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-4 py-5"
           >
             <h1 className="text-base font-semibold">输入运维密钥</h1>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">验证通过后会话约 12 小时内可连续删帖。</p>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">验证通过后会话约 12 小时内可连续管理投稿。</p>
             <label className="mt-4 block text-xs text-[var(--text-muted)]" htmlFor="admin-secret">
               GALLERY_ADMIN_SECRET
             </label>
@@ -208,8 +276,12 @@ export function AdminPage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h1 className="text-base font-semibold">已发布投稿</h1>
-                <p className="text-sm text-[var(--text-muted)]">删除为软隐藏，公开墙立即不再展示。</p>
+                <h1 className="text-base font-semibold">{tab === "pending" ? "待审投稿" : "已发布投稿"}</h1>
+                <p className="text-sm text-[var(--text-muted)]">
+                  {tab === "pending"
+                    ? "机审疑似或调用失败的投稿；通过后进入公开墙。"
+                    : "删除为软隐藏，公开墙立即不再展示。"}
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -233,6 +305,29 @@ export function AdminPage() {
               </div>
             </div>
 
+            <div className="flex gap-2">
+              {(
+                [
+                  ["published", "已发布"],
+                  ["pending", "待审"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={cn(
+                    "rounded-[var(--radius-control)] px-3 py-1.5 text-xs",
+                    tab === key
+                      ? "bg-[var(--accent-soft)] text-[var(--text)]"
+                      : "text-[var(--text-muted)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)]",
+                  )}
+                  onClick={() => setTab(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {actionError ? <p className="text-sm text-red-400">{actionError}</p> : null}
 
             {posts.isLoading ? (
@@ -241,7 +336,7 @@ export function AdminPage() {
               <p className="text-sm text-red-400">{(posts.error as Error).message}</p>
             ) : !posts.data?.posts.length ? (
               <p className="rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-6 text-center text-sm text-[var(--text-muted)]">
-                暂无已发布投稿
+                {tab === "pending" ? "暂无待审投稿" : "暂无已发布投稿"}
               </p>
             ) : (
               <ul className="flex flex-col gap-3">
@@ -249,8 +344,11 @@ export function AdminPage() {
                   <AdminPostRow
                     key={post.id}
                     post={post}
-                    busy={remove.isPending}
+                    mode={tab}
+                    busy={busy}
                     onDelete={onDelete}
+                    onApprove={onApprove}
+                    onReject={onReject}
                   />
                 ))}
               </ul>

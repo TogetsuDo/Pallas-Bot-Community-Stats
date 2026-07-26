@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 GallerySource = Literal["manual", "local_corpus"]
-GalleryStatus = Literal["published", "hidden"]
+GalleryStatus = Literal["published", "hidden", "pending"]
 
 
 class GalleryBotSnapshot(BaseModel):
@@ -36,6 +36,7 @@ class GalleryListResponse(BaseModel):
 class GalleryCreateResponse(BaseModel):
     id: str
     created_at: str
+    status: GalleryStatus = "published"
 
 
 class GalleryDeleteResponse(BaseModel):

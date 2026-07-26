@@ -6,8 +6,10 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 
+from pallas_community_stats.baidu_censor import BaiduCensorClient
 from pallas_community_stats.config import Settings
 from pallas_community_stats.corpus_store import CorpusStore
+from pallas_community_stats.gallery_censor import moderate_gallery_content
 from pallas_community_stats.gallery_models import (
     GalleryCreateResponse,
     GalleryDeleteResponse,
@@ -58,6 +60,7 @@ def build_gallery_router(
     store: GalleryStore,
     corpus_store: CorpusStore,
     settings: Settings,
+    censor: BaiduCensorClient | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/v1/gallery", tags=["gallery"])
 
@@ -144,26 +147,42 @@ def build_gallery_router(
         if day_n >= settings.gallery_per_day:
             raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="daily limit exceeded")
 
-        image_rel: str | None = None
+        image_raw: bytes | None = None
+        image_ext: str | None = None
         if image is not None and image.filename:
             content_type = (image.content_type or "").split(";")[0].strip().lower()
-            ext = ALLOWED_IMAGE_TYPES.get(content_type)
-            if not ext:
+            image_ext = ALLOWED_IMAGE_TYPES.get(content_type)
+            if not image_ext:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported image type")
-            raw = await image.read()
-            if len(raw) > MAX_IMAGE_BYTES:
+            image_raw = await image.read()
+            if len(image_raw) > MAX_IMAGE_BYTES:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="image too large")
-            if not raw:
+            if not image_raw:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty image")
+
+        if not body and not image_raw:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text or image required")
+
+        mod = await moderate_gallery_content(
+            censor=censor,
+            settings=settings,
+            text=body,
+            image_bytes=image_raw,
+        )
+        if mod.rejected:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="content rejected by moderation",
+            )
+
+        image_rel: str | None = None
+        if image_raw and image_ext:
             yyyy = datetime.now(UTC).strftime("%Y")
-            rel = f"{yyyy}/{uuid_name()}{ext}"
+            rel = f"{yyyy}/{uuid_name()}{image_ext}"
             dest = store.media_root / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(raw)
+            dest.write_bytes(image_raw)
             image_rel = rel
-
-        if not body and not image_rel:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text or image required")
 
         av = (avatar_url or "").strip()
         if not av and bot_qq:
@@ -179,8 +198,13 @@ def build_gallery_router(
             avatar_url=av,
             image_relpath=image_rel,
             created_unix=now,
+            status=mod.status,
         )
-        return GalleryCreateResponse(id=row.id, created_at=_iso_from_unix(row.created_unix))
+        return GalleryCreateResponse(
+            id=row.id,
+            created_at=_iso_from_unix(row.created_unix),
+            status=row.status if row.status in {"published", "pending", "hidden"} else "published",
+        )
 
     @router.delete("/posts/{post_id}", response_model=GalleryDeleteResponse)
     async def delete_post(

@@ -3,8 +3,10 @@ from __future__ import annotations
 import hashlib
 import hmac
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from pallas_community_stats.config import Settings
@@ -20,14 +22,18 @@ from pallas_community_stats.gallery_models import (
     GalleryAdminStatusResponse,
     GalleryDeleteResponse,
     GalleryPostPublic,
+    GalleryStatus,
 )
 from pallas_community_stats.gallery_store import GalleryStore
 from pallas_community_stats.roster_util import qq_avatar_url
+
+AdminListFilter = Literal["published", "pending", "all"]
 
 
 class GalleryAdminPost(GalleryPostPublic):
     deployment_id: str = ""
     has_image: bool = False
+    status: GalleryStatus = "published"
 
 
 class GalleryAdminListResponse(BaseModel):
@@ -78,7 +84,13 @@ def build_gallery_admin_router(*, store: GalleryStore, settings: Settings) -> AP
     def public_admin_post(request: Request, row) -> GalleryAdminPost:
         image_url = None
         if row.image_path:
-            image_url = str(request.url_for("gallery_image", post_id=row.id))
+            if row.status == "published":
+                image_url = str(request.url_for("gallery_image", post_id=row.id))
+            else:
+                image_url = str(request.url_for("gallery_admin_image", post_id=row.id))
+        st: GalleryStatus = "published"
+        if row.status in {"published", "pending", "hidden"}:
+            st = row.status
         return GalleryAdminPost(
             id=row.id,
             text=row.text,
@@ -92,6 +104,7 @@ def build_gallery_admin_router(*, store: GalleryStore, settings: Settings) -> AP
             created_unix=row.created_unix,
             deployment_id=row.deployment_id,
             has_image=bool(row.image_path),
+            status=st,
         )
 
     @router.get("/status", response_model=GalleryAdminStatusResponse)
@@ -127,6 +140,7 @@ def build_gallery_admin_router(*, store: GalleryStore, settings: Settings) -> AP
         request: Request,
         limit: int = Query(default=48, ge=1, le=100),
         cursor: str | None = Query(default=None),
+        status_filter: AdminListFilter = Query(default="published", alias="status"),
     ) -> GalleryAdminListResponse:
         require_admin(request)
         before = None
@@ -135,13 +149,46 @@ def build_gallery_admin_router(*, store: GalleryStore, settings: Settings) -> AP
                 before = int(cursor)
             except ValueError as exc:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid cursor") from exc
-        rows = store.list_published(limit=limit, before_unix=before)
+        if status_filter == "pending":
+            statuses = ("pending",)
+        elif status_filter == "all":
+            statuses = ("published", "pending")
+        else:
+            statuses = ("published",)
+        rows = store.list_by_status(statuses=statuses, limit=limit, before_unix=before)
         next_cursor = str(rows[-1].created_unix) if len(rows) >= limit else None
         return GalleryAdminListResponse(
             as_of=_as_of(),
             posts=[public_admin_post(request, r) for r in rows],
             next_cursor=next_cursor,
         )
+
+    @router.get("/images/{post_id}", name="gallery_admin_image")
+    async def admin_image(post_id: str, request: Request):
+        require_admin(request)
+        row = store.get_post(post_id)
+        if row is None or row.status not in {"published", "pending"} or not row.image_path:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="image not found")
+        path = store.resolve_image_path(row.image_path)
+        if path is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="image missing")
+        return FileResponse(path)
+
+    @router.post("/posts/{post_id}/approve", response_model=GalleryAdminOkResponse)
+    async def admin_approve_post(post_id: str, request: Request) -> GalleryAdminOkResponse:
+        require_admin(request)
+        ok = store.approve_post(post_id=post_id)
+        if not ok:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="post not found")
+        return GalleryAdminOkResponse()
+
+    @router.post("/posts/{post_id}/reject", response_model=GalleryDeleteResponse)
+    async def admin_reject_post(post_id: str, request: Request) -> GalleryDeleteResponse:
+        require_admin(request)
+        ok = store.hide_post_any(post_id=post_id)
+        if not ok:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="post not found")
+        return GalleryDeleteResponse(id=post_id)
 
     @router.delete("/posts/{post_id}", response_model=GalleryDeleteResponse)
     async def admin_delete_post(post_id: str, request: Request) -> GalleryDeleteResponse:

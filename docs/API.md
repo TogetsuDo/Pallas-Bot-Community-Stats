@@ -493,6 +493,17 @@
 
 正文与图片至少其一。按部署限流：默认每小时 `GALLERY_PER_HOUR`（30）、每日 `GALLERY_PER_DAY`（10）；超限 **429**。
 
+配置了 `BAIDU_CENSOR_API_KEY` + `BAIDU_CENSOR_SECRET_KEY` 时创建前走百度内容审核：
+
+| 机审结果 | 行为 |
+| --- | --- |
+| 合规 | `status=published`，公开墙可见 |
+| 不合规 | **422**，不入库 |
+| 疑似 | `status=pending`，公开墙不可见，进 `/admin` 待审 |
+| 调用失败 | 默认 `pending`（`GALLERY_CENSOR_ON_ERROR=reject` 则 422） |
+
+成功响应含 `id`、`created_at`、`status`（`published` / `pending`）。图片审核可由 `GALLERY_CENSOR_IMAGE=false` 关闭。
+
 ### `DELETE /v1/gallery/posts/{post_id}`
 
 软删除（`status=hidden`），仅本 `deployment_id` 可撤下。鉴权同创建。
@@ -506,8 +517,11 @@
 | `GET` | `/v1/gallery/admin/status` | `{ enabled, authenticated }`，无需登录 |
 | `POST` | `/v1/gallery/admin/login` | JSON `{ "secret" }`；成功后设 HttpOnly Cookie（约 12h） |
 | `POST` | `/v1/gallery/admin/logout` | 清除 Cookie |
-| `GET` | `/v1/gallery/admin/posts` | 需会话；列表同公开字段，另含 `deployment_id`、`has_image` |
-| `DELETE` | `/v1/gallery/admin/posts/{post_id}` | 需会话；软隐藏**任意**已发布投稿（不限 deployment） |
+| `GET` | `/v1/gallery/admin/posts` | 需会话；Query `status=published\|pending\|all`（默认 published）；另含 `deployment_id`、`has_image`、`status` |
+| `GET` | `/v1/gallery/admin/images/{post_id}` | 需会话；查看已发布/待审图片 |
+| `POST` | `/v1/gallery/admin/posts/{post_id}/approve` | 需会话；`pending` → `published` |
+| `POST` | `/v1/gallery/admin/posts/{post_id}/reject` | 需会话；软隐藏 pending/published |
+| `DELETE` | `/v1/gallery/admin/posts/{post_id}` | 需会话；软隐藏 pending/published |
 
 ## 环境变量
 
@@ -531,6 +545,10 @@
 | `GALLERY_PER_HOUR` | `30` | 单部署每小时投稿上限 |
 | `GALLERY_PER_DAY` | `10` | 单部署每日投稿上限 |
 | `GALLERY_ADMIN_SECRET` | 空 | 非空则启用 `/admin` 投稿管理；勿提交到仓库 |
+| `BAIDU_CENSOR_API_KEY` | 空 | 百度内容审核 API Key；与 Secret 同时非空时启用机审 |
+| `BAIDU_CENSOR_SECRET_KEY` | 空 | 百度内容审核 Secret Key |
+| `GALLERY_CENSOR_IMAGE` | `true` | 是否对投稿图片调用图片审核 |
+| `GALLERY_CENSOR_ON_ERROR` | `pending` | 机审调用失败：`pending` 进待审，`reject` 拒绝 |
 
 ## 隐私
 
