@@ -28,6 +28,7 @@ CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN = "false"
 # GALLERY_MEDIA_DIR = "data/gallery"
 # GALLERY_PER_HOUR = "30"
 # GALLERY_PER_DAY = "10"
+# GALLERY_ADMIN_SECRET = "change-me"  # 启用 /admin 投稿管理；勿提交真实密钥
 
 # 多实例 + 公开写入：启用 Redis 分布式限流
 # REDIS_URL = "redis://127.0.0.1:6379/1"

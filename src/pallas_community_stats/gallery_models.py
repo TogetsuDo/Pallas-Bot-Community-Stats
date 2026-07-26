@@ -41,3 +41,17 @@ class GalleryCreateResponse(BaseModel):
 class GalleryDeleteResponse(BaseModel):
     ok: bool = True
     id: str
+
+
+class GalleryAdminLoginBody(BaseModel):
+    secret: str = ""
+
+
+class GalleryAdminOkResponse(BaseModel):
+    ok: bool = True
+
+
+class GalleryAdminStatusResponse(BaseModel):
+    ok: bool = True
+    enabled: bool = False
+    authenticated: bool = False

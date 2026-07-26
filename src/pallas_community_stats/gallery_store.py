@@ -60,9 +60,7 @@ class GalleryStore:
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_gallery_posts_created ON gallery_posts(created_unix DESC)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_gallery_posts_created ON gallery_posts(created_unix DESC)")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_gallery_posts_deployment "
                 "ON gallery_posts(deployment_id, created_unix DESC)"
@@ -162,6 +160,21 @@ class GalleryStore:
                 WHERE id = ? AND deployment_id = ? AND status = 'published'
                 """,
                 (pid, dep),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
+    def hide_post_any(self, *, post_id: str) -> bool:
+        pid = (post_id or "").strip()
+        if not pid:
+            return False
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                """
+                UPDATE gallery_posts SET status = 'hidden'
+                WHERE id = ? AND status = 'published'
+                """,
+                (pid,),
             )
             conn.commit()
             return cur.rowcount > 0

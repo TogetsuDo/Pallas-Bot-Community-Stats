@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { App } from "@/App";
+import { AdminPage } from "@/pages/AdminPage";
 import brandMarkUrl from "@/assets/brand-avatar.png?url";
 import "@fontsource/poppins/400.css";
 import "@fontsource/poppins/500.css";
@@ -41,9 +42,12 @@ const queryClient = new QueryClient({
 const rootEl = document.querySelector("#root");
 if (!rootEl) throw new Error("#root missing");
 
+const path = window.location.pathname.replace(/\/+$/, "") || "/";
+const isAdmin = path === "/admin";
+
 createRoot(rootEl).render(
   <QueryClientProvider client={queryClient}>
-    <App />
+    {isAdmin ? <AdminPage /> : <App />}
   </QueryClientProvider>,
 );
 

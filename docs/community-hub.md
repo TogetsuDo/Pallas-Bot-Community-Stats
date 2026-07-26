@@ -35,21 +35,22 @@ Bot 侧名册上报、社区投稿与隐私说明见 Pallas-Bot [在线统计与
 | 气泡区 | 进入视口后拉 `/v1/roster/bubble`，之后按约 60s 刷新；开启 QQ 公开时可点开资料卡 |
 | 概览 | `GET /v1/monitor/overview` |
 | 热词 | `GET /v1/corpus/hot`（`pool` / `recent` / `fleet`） |
-| 投稿墙 | 进入视口后拉 `GET /v1/gallery/posts`；文字卡轮换，无 Bot 身份的带图投稿按截图展示 |
+| 投稿墙 | 进入视口后拉 `GET /v1/gallery/posts`；文字以聊天气泡轮换，无 Bot 身份的带图投稿按截图展示 |
 | 窄屏 ≤560px | 指标与分区单列；气泡过多时可横向滚动 |
 
-投稿由各部署在 Bot 控制台 **统计与语料 → 社区投稿** 提交（经 Bot 代理写中心），主站只读展示。
+投稿由各部署在 Bot 控制台 **统计与语料 → 社区投稿** 提交（经 Bot 代理写中心），主站只读展示。中心运维可在 `/admin`（配置 `GALLERY_ADMIN_SECRET`）软隐藏任意投稿。
 
 ## 路由与静态资源
 
 | 路径 | 处理 |
 | --- | --- |
 | `/` | 社区主站 SPA（`index.html`） |
+| `/admin` | 投稿管理 SPA（不链入主导航；须运维密钥） |
 | `/assets/*` | Vite 构建产物 |
 | `/v1/*` | FastAPI JSON API（含 `/v1/gallery/*`） |
 | `/health` | 健康检查 |
 
-实现：`web/` 源码 → `./scripts/build_hub.sh` → `src/pallas_community_stats/hub_static/`（Docker 多阶段构建写入镜像）。投稿墙 UI：`web/src/components/GallerySection.tsx`。
+实现：`web/` 源码 → `./scripts/build_hub.sh` → `src/pallas_community_stats/hub_static/`（Docker 多阶段构建写入镜像）。投稿墙 UI：`web/src/components/GallerySection.tsx`；管理页：`web/src/pages/AdminPage.tsx`。
 
 ## 数据：名册上报（扩展心跳）
 

@@ -26,6 +26,7 @@ from pallas_community_stats.federation_onboarding import (
     federation_onboarding_enabled,
 )
 from pallas_community_stats.federation_onboarding_models import FederationOnboardingResponse
+from pallas_community_stats.gallery_admin_routes import build_gallery_admin_router
 from pallas_community_stats.gallery_routes import build_gallery_router
 from pallas_community_stats.gallery_store import GalleryStore
 from pallas_community_stats.hub_routes import register_hub_routes
@@ -347,6 +348,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             build_gallery_router(
                 store=gallery_store,
                 corpus_store=corpus_store,
+                settings=cfg,
+            )
+        )
+        app.include_router(
+            build_gallery_admin_router(
+                store=gallery_store,
                 settings=cfg,
             )
         )

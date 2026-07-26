@@ -497,6 +497,18 @@
 
 软删除（`status=hidden`），仅本 `deployment_id` 可撤下。鉴权同创建。
 
+### 中心运维管理（`/v1/gallery/admin`）
+
+社区主站隐藏入口 `/admin` 使用。须配置非空 `GALLERY_ADMIN_SECRET`；未配置时 `GET /status` 返回 `enabled=false`，写接口 **503**。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/v1/gallery/admin/status` | `{ enabled, authenticated }`，无需登录 |
+| `POST` | `/v1/gallery/admin/login` | JSON `{ "secret" }`；成功后设 HttpOnly Cookie（约 12h） |
+| `POST` | `/v1/gallery/admin/logout` | 清除 Cookie |
+| `GET` | `/v1/gallery/admin/posts` | 需会话；列表同公开字段，另含 `deployment_id`、`has_image` |
+| `DELETE` | `/v1/gallery/admin/posts/{post_id}` | 需会话；软隐藏**任意**已发布投稿（不限 deployment） |
+
 ## 环境变量
 
 | 变量 | 默认 | 说明 |
@@ -518,6 +530,7 @@
 | `GALLERY_MEDIA_DIR` | `data/gallery` | 投稿图片目录 |
 | `GALLERY_PER_HOUR` | `30` | 单部署每小时投稿上限 |
 | `GALLERY_PER_DAY` | `10` | 单部署每日投稿上限 |
+| `GALLERY_ADMIN_SECRET` | 空 | 非空则启用 `/admin` 投稿管理；勿提交到仓库 |
 
 ## 隐私
 

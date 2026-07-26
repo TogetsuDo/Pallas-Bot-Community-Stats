@@ -38,11 +38,19 @@ def register_hub_routes(app) -> None:
 
     router = APIRouter(include_in_schema=False)
 
-    @router.get("/")
-    async def hub_index() -> FileResponse:
+    def hub_spa() -> FileResponse:
         index = static_root / "index.html"
         if not index.is_file():
             raise HTTPException(status_code=404, detail="hub not built")
         return FileResponse(index, media_type="text/html; charset=utf-8")
+
+    @router.get("/")
+    async def hub_index() -> FileResponse:
+        return hub_spa()
+
+    @router.get("/admin")
+    @router.get("/admin/")
+    async def hub_admin() -> FileResponse:
+        return hub_spa()
 
     app.include_router(router)

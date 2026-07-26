@@ -44,19 +44,19 @@ function shortTime(unix: number): string {
 
 function MessageCard({ post }: { post: GalleryPost }) {
   return (
-    <article className="gallery-card">
-      <div className="gallery-card__hd">
-        {post.avatar_url ? (
-          <img className="gallery-card__avatar" src={post.avatar_url} alt="" width={28} height={28} />
-        ) : (
-          <div className="gallery-card__avatar gallery-card__avatar--fallback" aria-hidden="true" />
-        )}
-        <div className="gallery-card__meta">
-          <div className="gallery-card__name">{post.nickname || "牛牛"}</div>
-          <div className="gallery-card__time">{shortTime(post.created_unix)}</div>
+    <article className="gallery-msg">
+      {post.avatar_url ? (
+        <img className="gallery-msg__avatar" src={post.avatar_url} alt="" width={36} height={36} />
+      ) : (
+        <div className="gallery-msg__avatar gallery-msg__avatar--fallback" aria-hidden="true" />
+      )}
+      <div className="gallery-msg__body">
+        <div className="gallery-msg__meta">
+          <span className="gallery-msg__name">{post.nickname || "牛牛"}</span>
+          <span className="gallery-msg__time">{shortTime(post.created_unix)}</span>
         </div>
+        {post.text ? <p className="gallery-msg__bubble">{post.text}</p> : null}
       </div>
-      {post.text ? <p className="gallery-card__bubble">{post.text}</p> : null}
     </article>
   );
 }
@@ -169,7 +169,7 @@ export function GallerySection() {
           </p>
           <h2 className="text-xl font-semibold text-[var(--text)]">社区投稿</h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            纯文字以模拟发言卡轮换；带图投稿直接展示截图。正文碎片会轻轻飘落。
+            纯文字以聊天气泡轮换；带图投稿直接展示截图。正文碎片会轻轻飘落。
           </p>
         </div>
 

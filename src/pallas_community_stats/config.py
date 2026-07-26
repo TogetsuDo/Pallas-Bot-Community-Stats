@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     gallery_media_dir: Path = Field(default=Path("data/gallery"), validation_alias="GALLERY_MEDIA_DIR")
     gallery_per_hour: int = Field(default=30, ge=1, le=1000, validation_alias="GALLERY_PER_HOUR")
     gallery_per_day: int = Field(default=10, ge=1, le=10_000, validation_alias="GALLERY_PER_DAY")
+    gallery_admin_secret: str = Field(default="", validation_alias="GALLERY_ADMIN_SECRET")
 
 
 @lru_cache(maxsize=1)
