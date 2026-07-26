@@ -905,6 +905,14 @@ html[data-theme="light"] .tech-shell::before {
   overflow: visible;
 }
 
+.bubble-shell:has(.bubble-canvas--sphere) {
+  border-color: color-mix(in srgb, #6b8cff 28%, var(--glass-border));
+  background: #05070f;
+  box-shadow:
+    var(--glass-shadow),
+    0 0 0 1px color-mix(in srgb, #7aa2ff 12%, transparent) inset;
+}
+
 .bot-list {
   margin-top: 16px;
 }
@@ -1164,6 +1172,28 @@ html[data-theme="light"] .tech-shell::before {
 
 .bubble-canvas--flat {
   touch-action: pan-y pinch-zoom;
+  background:
+    radial-gradient(
+      ellipse 85% 70% at 50% 38%,
+      color-mix(in srgb, var(--cyan) 16%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 12% 78%,
+      color-mix(in srgb, var(--accent) 12%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 48% 40% at 88% 20%,
+      color-mix(in srgb, var(--cyan) 10%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--surface) 82%, var(--cyan-soft)) 0%,
+      color-mix(in srgb, var(--bg-soft) 90%, var(--surface)) 48%,
+      color-mix(in srgb, var(--bg) 88%, var(--accent)) 100%
+    );
 }
 
 .bubble-canvas--focused.bubble-canvas--flat {
@@ -1237,9 +1267,37 @@ html[data-theme="light"] .tech-shell::before {
   z-index: 1;
 }
 
-.bubble-canvas--flat::before,
+.bubble-canvas--flat::before {
+  inset: 0;
+  border-radius: inherit;
+  border: none;
+  box-shadow: none;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border) 75%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 75%, transparent) 1px, transparent 1px);
+  background-size: 30px 30px;
+  mask-image: radial-gradient(ellipse 74% 68% at 50% 45%, #000 12%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 74% 68% at 50% 45%, #000 12%, transparent 78%);
+}
+
 .bubble-canvas--flat::after {
-  display: none;
+  inset: 8% 5%;
+  border-radius: 42%;
+  border: none;
+  box-shadow: none;
+  opacity: 0.9;
+  background:
+    radial-gradient(
+      ellipse at 38% 34%,
+      color-mix(in srgb, var(--cyan) 14%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 72% 68%,
+      color-mix(in srgb, var(--accent) 12%, transparent),
+      transparent 52%
+    );
 }
 
 .bubble-canvas--sphere {
@@ -1247,6 +1305,78 @@ html[data-theme="light"] .tech-shell::before {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  background:
+    radial-gradient(ellipse 120% 85% at 14% 8%, rgba(96, 72, 190, 0.42), transparent 55%),
+    radial-gradient(ellipse 95% 75% at 86% 82%, rgba(28, 96, 170, 0.36), transparent 52%),
+    radial-gradient(ellipse 55% 48% at 48% 46%, rgba(48, 78, 140, 0.22), transparent 68%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, #0a1020 0%, #05070f 68%, #020308 100%);
+}
+
+html[data-theme="light"] .bubble-canvas--sphere {
+  background:
+    radial-gradient(ellipse 120% 85% at 16% 10%, rgba(118, 98, 205, 0.3), transparent 55%),
+    radial-gradient(ellipse 95% 75% at 84% 80%, rgba(50, 110, 185, 0.24), transparent 52%),
+    radial-gradient(ellipse 55% 48% at 50% 48%, rgba(60, 90, 150, 0.16), transparent 68%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, #12182a 0%, #0c1220 65%, #080b14 100%);
+}
+
+.bubble-canvas--sphere::before {
+  inset: 0;
+  border-radius: inherit;
+  border: none;
+  box-shadow: none;
+  opacity: 0.88;
+  background-color: transparent;
+  background-image:
+    radial-gradient(1.15px 1.15px at 6% 14%, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1px 1px at 14% 42%, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.3px 1.3px at 22% 18%, rgba(210, 230, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 31% 68%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.2px 1.2px at 38% 28%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 47% 76%, rgba(200, 220, 255, 0.6), transparent),
+    radial-gradient(1.4px 1.4px at 55% 12%, rgba(255, 255, 255, 0.92), transparent),
+    radial-gradient(1px 1px at 63% 48%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.15px 1.15px at 71% 22%, rgba(220, 235, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 78% 64%, rgba(255, 255, 255, 0.58), transparent),
+    radial-gradient(1.25px 1.25px at 86% 36%, rgba(255, 255, 255, 0.88), transparent),
+    radial-gradient(1px 1px at 93% 78%, rgba(200, 220, 255, 0.55), transparent),
+    radial-gradient(1.1px 1.1px at 11% 82%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 26% 54%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1.2px 1.2px at 44% 90%, rgba(210, 230, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 58% 58%, rgba(255, 255, 255, 0.48), transparent),
+    radial-gradient(1.3px 1.3px at 74% 88%, rgba(255, 255, 255, 0.82), transparent),
+    radial-gradient(1px 1px at 89% 8%, rgba(220, 235, 255, 0.7), transparent),
+    radial-gradient(1.1px 1.1px at 17% 30%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 66% 34%, rgba(255, 255, 255, 0.42), transparent);
+  background-size: 120% 120%;
+  background-position: 0% 0%;
+  animation: bubble-cosmos-drift 90s linear infinite;
+}
+
+.bubble-canvas--sphere::after {
+  inset: 0;
+  border-radius: inherit;
+  border: none;
+  box-shadow: none;
+  background:
+    radial-gradient(ellipse 42% 38% at 32% 40%, rgba(110, 150, 255, 0.1), transparent 70%),
+    radial-gradient(ellipse 36% 32% at 70% 58%, rgba(160, 100, 220, 0.08), transparent 68%),
+    radial-gradient(ellipse 70% 62% at 50% 48%, transparent 28%, rgba(0, 0, 0, 0.52) 100%);
+}
+
+@keyframes bubble-cosmos-drift {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 12% 8%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-canvas--sphere::before {
+    animation: none;
+  }
 }
 
 .bubble-canvas--sphere .bubble-node {
@@ -1318,18 +1448,6 @@ html[data-theme="light"] .tech-shell::before {
   pointer-events: none;
 }
 
-.bubble-mesh {
-  pointer-events: none;
-}
-
-.bubble-mesh__curve {
-  fill: none;
-  stroke: color-mix(in srgb, var(--cyan) 42%, var(--muted));
-  stroke-width: 0.85;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 .bubble-link {
   stroke: color-mix(in srgb, var(--muted) 55%, transparent);
   stroke-width: 1;
@@ -1338,6 +1456,24 @@ html[data-theme="light"] .tech-shell::before {
 
 .bubble-link--online {
   stroke: color-mix(in srgb, var(--online) 70%, var(--muted));
+}
+
+.bubble-canvas--sphere .bubble-link {
+  stroke: color-mix(in srgb, #9ec8ff 62%, transparent);
+  stroke-width: 1.05;
+}
+
+.bubble-canvas--sphere .bubble-link--online {
+  stroke: color-mix(in srgb, var(--cyan) 70%, #fff);
+}
+
+html[data-theme="light"] .bubble-canvas--sphere .bubble-node__label-bg {
+  fill: rgba(12, 18, 32, 0.82);
+  stroke: rgba(180, 210, 255, 0.18);
+}
+
+html[data-theme="light"] .bubble-canvas--sphere .bubble-node__label {
+  fill: rgba(235, 242, 255, 0.95);
 }
 
 .bubble-label-layer {

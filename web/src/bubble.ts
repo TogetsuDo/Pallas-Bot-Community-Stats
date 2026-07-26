@@ -35,18 +35,11 @@ type LinkSelection = import("d3").Selection<SVGLineElement, SimLink, SVGGElement
 
 type SceneRefs = {
   stageSel: import("d3").Selection<SVGGElement, unknown, null, undefined>;
-  meshLayerSel: import("d3").Selection<SVGGElement, unknown, null, undefined> | null;
-  meshSel: import("d3").Selection<SVGPathElement, MeshCurve, SVGGElement, unknown> | null;
   linkLayerSel: import("d3").Selection<SVGGElement, unknown, null, undefined>;
   nodeSel: NodeSelection;
   linkSel: LinkSelection;
   clipIds: string[];
   clipCircleSels: import("d3").Selection<SVGCircleElement, unknown, null, undefined>[];
-};
-
-type MeshCurve = {
-  id: string;
-  points: Vec3[];
 };
 
 type D3Module = Awaited<ReturnType<typeof importD3>>;
@@ -109,7 +102,6 @@ export class BubbleWall {
   private d3Ref: D3Module | null = null;
   private animFrame: number | null = null;
   private sphereSpinRaf: number | null = null;
-  private spherePaintFrame = 0;
   private neighborMap = new Map<string, Set<string>>();
   private isDragging = false;
   private dragPending = false;
@@ -174,12 +166,13 @@ export class BubbleWall {
 
   private updateLegend(bots: BubbleBot[]): void {
     const onlineCount = bots.filter((bot) => bot.online).length;
-    const modeHint = this.layoutMode === "sphere" ? "立体关系网" : "平铺气泡";
+    const clusterCount = groupBotsByDeployment(bots).length;
+    const modeHint = this.layoutMode === "sphere" ? "宇宙纵深" : "平铺气泡";
     const interactHint =
       this.layoutMode === "sphere"
-        ? "拖拽旋转 · 点击聚焦并高亮同套邻居 · 再次点击添加好友"
-        : "点击聚焦 · 再次点击添加好友";
-    this.legend.textContent = `${modeHint} · 上报公开共 ${bots.length} 只 · 在线 ${onlineCount} 只 · ${interactHint}`;
+        ? "部署如星团散布 · 拖拽旋转 · 点击聚焦同套邻居"
+        : "同部署分簇 · 点击聚焦 · 再次点击添加好友";
+    this.legend.textContent = `${modeHint} · ${clusterCount} 套部署 · 公开 ${bots.length} 只 · 在线 ${onlineCount} 只 · ${interactHint}`;
   }
 
   private resetInteractionState(): void {
@@ -382,7 +375,7 @@ export class BubbleWall {
     const isNarrow = width <= 560;
     const baseHeight = isNarrow ? Math.max(440, width * 0.95) : Math.max(540, Math.min(740, width * 0.62));
     this.lastViewport = { width, height: baseHeight };
-    this.sphereRadius = Math.min(width, baseHeight) * (isNarrow ? 0.42 : 0.47);
+    this.sphereRadius = Math.min(width, baseHeight) * (isNarrow ? 0.58 : 0.66);
 
     const nodes =
       this.layoutMode === "sphere"
@@ -407,7 +400,7 @@ export class BubbleWall {
       .attr("role", "img")
       .attr(
         "aria-label",
-        this.layoutMode === "sphere" ? "社区牛牛立体关系网" : "社区牛牛平铺气泡墙",
+        this.layoutMode === "sphere" ? "社区牛牛宇宙纵深关系" : "社区牛牛平铺气泡墙",
       );
 
     const defs = svg.append("defs");
@@ -428,19 +421,6 @@ export class BubbleWall {
     });
 
     const stage = svg.append("g").attr("class", "bubble-stage");
-
-    let meshLayerSel: SceneRefs["meshLayerSel"] = null;
-    let meshSel: SceneRefs["meshSel"] = null;
-    if (this.layoutMode === "sphere") {
-      meshLayerSel = stage.append("g").attr("class", "bubble-mesh");
-      const meshCurves = buildSphereMeshCurves(this.sphereRadius);
-      meshSel = meshLayerSel
-        .selectAll<SVGPathElement, MeshCurve>("path.bubble-mesh__curve")
-        .data(meshCurves, (curve) => curve.id)
-        .join("path")
-        .attr("class", "bubble-mesh__curve");
-    }
-
     const linkLayer = stage.append("g").attr("class", "bubble-links");
     const linkSel = linkLayer
       .selectAll<SVGLineElement, SimLink>("line.bubble-link")
@@ -498,11 +478,8 @@ export class BubbleWall {
     });
 
     this.d3Ref = d3;
-    this.spherePaintFrame = 0;
     this.scene = {
       stageSel: stage,
-      meshLayerSel,
-      meshSel,
       linkLayerSel: linkLayer,
       nodeSel,
       linkSel,
@@ -731,12 +708,10 @@ export class BubbleWall {
     const morphing = Boolean(focusNode && morphFromNode && this.flatFocusMorphT < 1);
     const focusing = Boolean(focusNode && (this.focusBlend > 0 || morphing));
     const linkBlend = morphing ? Math.max(this.focusBlend, this.flatFocusMorphT) : this.focusBlend;
-    const showFlatLinks = focusing && linkBlend > 0.04;
     const focusNeighbors = focusKey ? this.neighborMap.get(focusKey) : undefined;
     const highlightLinks = Boolean(focusKey && focusNeighbors && linkBlend > 0.3);
 
-    this.scene.linkLayerSel.style("display", showFlatLinks ? "" : "none");
-    this.scene.meshLayerSel?.style("display", "none");
+    this.scene.linkLayerSel.style("display", null);
 
     const nodeVisual = (node: LayoutNode): FlatNodePaint =>
       resolveFlatNodeVisual(
@@ -775,47 +750,49 @@ export class BubbleWall {
         );
       });
 
-    if (showFlatLinks) {
-      this.scene.linkSel
-        .attr("class", (link) => {
-          const online =
-            link.source.bot.online && link.target.bot.online ? " bubble-link--online" : "";
-          const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
-          const highlight = highlightLinks && connected ? " bubble-link--highlight" : "";
-          return `bubble-link${online}${highlight}`;
-        })
-        .attr("x1", (link) => {
-          const sourcePaint = nodeVisual(link.source);
-          const targetPaint = nodeVisual(link.target);
-          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).x1;
-        })
-        .attr("y1", (link) => {
-          const sourcePaint = nodeVisual(link.source);
-          const targetPaint = nodeVisual(link.target);
-          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).y1;
-        })
-        .attr("x2", (link) => {
-          const sourcePaint = nodeVisual(link.source);
-          const targetPaint = nodeVisual(link.target);
-          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).x2;
-        })
-        .attr("y2", (link) => {
-          const sourcePaint = nodeVisual(link.source);
-          const targetPaint = nodeVisual(link.target);
-          return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).y2;
-        })
-        .style("stroke-opacity", (link) => {
-          const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
-          if (highlightLinks && connected) {
-            return Math.min(0.72, 0.22 + 0.46 * linkBlend);
-          }
-          return 0.08 + 0.14 * linkBlend;
-        })
-        .attr("stroke-width", (link) => {
-          const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
-          return connected && highlightLinks ? 1.15 : 0.85;
-        });
-    }
+    this.scene.linkSel
+      .attr("class", (link) => {
+        const online =
+          link.source.bot.online && link.target.bot.online ? " bubble-link--online" : "";
+        const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
+        const highlight = highlightLinks && connected ? " bubble-link--highlight" : "";
+        return `bubble-link${online}${highlight}`;
+      })
+      .attr("x1", (link) => {
+        const sourcePaint = nodeVisual(link.source);
+        const targetPaint = nodeVisual(link.target);
+        return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).x1;
+      })
+      .attr("y1", (link) => {
+        const sourcePaint = nodeVisual(link.source);
+        const targetPaint = nodeVisual(link.target);
+        return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).y1;
+      })
+      .attr("x2", (link) => {
+        const sourcePaint = nodeVisual(link.source);
+        const targetPaint = nodeVisual(link.target);
+        return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).x2;
+      })
+      .attr("y2", (link) => {
+        const sourcePaint = nodeVisual(link.source);
+        const targetPaint = nodeVisual(link.target);
+        return flatLinkEndpoint(link.source, link.target, sourcePaint, targetPaint).y2;
+      })
+      .style("stroke-opacity", (link) => {
+        const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
+        if (!focusing || linkBlend < 0.04) {
+          return link.source.bot.online && link.target.bot.online ? 0.075 : 0.045;
+        }
+        if (highlightLinks && connected) {
+          return Math.min(0.72, 0.22 + 0.46 * linkBlend);
+        }
+        return 0.035 + 0.08 * (1 - linkBlend);
+      })
+      .attr("stroke-width", (link) => {
+        const connected = focusKey && (link.source.id === focusKey || link.target.id === focusKey);
+        if (!focusing || linkBlend < 0.04) return 0.7;
+        return connected && highlightLinks ? 1.15 : 0.75;
+      });
 
     if (morphing && morphFromNode && focusNode) {
       const fromStage = flatStageMetrics(morphFromNode, 1, cx, cy);
@@ -844,35 +821,17 @@ export class BubbleWall {
     const { width, height } = this.lastViewport;
     const cx = width / 2;
     const cy = height / 2;
-    const focal = Math.max(width, height) * 2.45;
+    const focal = Math.max(width, height) * 2.15;
     const focusKey = this.activeBotKey;
     const focusNeighbors = focusKey ? this.neighborMap.get(focusKey) : undefined;
     const showNeighbors = Boolean(focusKey && focusNeighbors && this.focusBlend > 0.35);
     const projected = new Map<string, Projected>();
-    const spinOnly = !this.isDragging && !this.activeBotKey && this.animFrame == null;
-    const updateMesh = Boolean(this.scene.meshSel) && (!spinOnly || this.spherePaintFrame++ % 2 === 0);
-
     this.scene.linkLayerSel.style("display", null);
-    if (this.scene.meshLayerSel) {
-      this.scene.meshLayerSel.style("display", null);
-    }
 
     const projectWorld = (point: Vec3): Projected => {
       const rotated = rotateY(rotateX(point, this.viewRotX), this.viewRotY);
       return project(rotated, focal, cx, cy, this.sphereRadius);
     };
-
-    if (updateMesh && this.scene.meshSel) {
-      const sphereR = this.sphereRadius;
-      this.scene.meshSel.each((curve, index, groups) => {
-        const projectedPts = curve.points.map((point) => projectWorld(point));
-        const avgZ = projectedPts.reduce((sum, point) => sum + point.z, 0) / projectedPts.length;
-        const d = projectedPts
-          .map((point, i) => `${i === 0 ? "M" : "L"}${point.x.toFixed(1)},${point.y.toFixed(1)}`)
-          .join(" ");
-        d3.select(groups[index]).attr("d", d).style("opacity", meshCurveOpacity(avgZ, sphereR));
-      });
-    }
 
     this.layoutNodes.forEach((node) => {
       const point = projectWorld({ x: node.wx, y: node.wy, z: node.wz });
@@ -960,8 +919,8 @@ export class BubbleWall {
           }
           return 0.035;
         }
-        const base = link.source.bot.online && link.target.bot.online ? 0.16 : 0.1;
-        return base + 0.22 * depth + 0.08 * this.focusBlend;
+        const base = link.source.bot.online && link.target.bot.online ? 0.22 : 0.12;
+        return base + 0.28 * depth + 0.08 * this.focusBlend;
       })
       .attr("stroke-width", (link) => {
         const source = projected.get(link.source.id)!;
@@ -1315,6 +1274,28 @@ function updateNodeGraphics(
   }
 }
 
+const UNGROUPED_DEPLOYMENT = "__ungrouped__";
+
+function primaryDeploymentId(bot: BubbleBot): string {
+  const ids = (bot.deployment_ids ?? []).map((id) => id.trim()).filter(Boolean);
+  if (!ids.length) return UNGROUPED_DEPLOYMENT;
+  return [...ids].sort((a, b) => a.localeCompare(b))[0]!;
+}
+
+function groupBotsByDeployment(bots: BubbleBot[]): Array<[string, BubbleBot[]]> {
+  const map = new Map<string, BubbleBot[]>();
+  for (const bot of bots) {
+    const key = primaryDeploymentId(bot);
+    const list = map.get(key);
+    if (list) list.push(bot);
+    else map.set(key, [bot]);
+  }
+  return [...map.entries()].sort((a, b) => {
+    if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+    return a[0].localeCompare(b[0]);
+  });
+}
+
 function layoutFlatNodes(
   d3: D3Module,
   bots: BubbleBot[],
@@ -1322,14 +1303,18 @@ function layoutFlatNodes(
   baseHeight: number,
   isNarrow: boolean,
 ): LayoutNode[] {
-  type PackDatum = { bot: BubbleBot; value: number; children?: PackDatum[] };
+  type PackDatum = { bot?: BubbleBot; value: number; children?: PackDatum[] };
   const packPad = isNarrow ? 10 : 14;
+  const groups = groupBotsByDeployment(bots);
   const rootData: PackDatum = {
-    bot: bots[0],
     value: 0,
-    children: bots.map((bot) => ({
-      bot,
-      value: Math.max(1, Math.sqrt(bot.message_weight || 0) + 8),
+    children: groups.map(([, members]) => ({
+      value: 0,
+      children: members.map((bot) => ({
+        bot,
+        // 用面积权重拉开热度（pack 半径约随 sqrt(value)）
+        value: flatPackValue(bot),
+      })),
     })),
   };
 
@@ -1340,43 +1325,245 @@ function layoutFlatNodes(
   const root = pack(d3.hierarchy(rootData).sum((d) => d.value));
   const leaves = root.leaves() as Array<import("d3").HierarchyCircularNode<PackDatum>>;
 
-  return leaves.map((leaf) => ({
-    id: leaf.data.bot.bot_key,
-    bot: leaf.data.bot,
-    r: leaf.r,
-    x: leaf.x + packPad,
-    y: leaf.y + packPad,
-    wx: 0,
-    wy: 0,
-    wz: 0,
-  }));
+  const minR = isNarrow ? 15 : 17;
+  const maxR = isNarrow ? 28 : 34;
+
+  return leaves
+    .filter((leaf) => leaf.data.bot)
+    .map((leaf) => {
+      const bot = leaf.data.bot!;
+      const heat = flatHeatUnit(bot.message_weight);
+      // pack 定位置；热度微调半径，保持可辨但不过大
+      const targetR = minR + (maxR - minR) * heat;
+      const r = Math.min(maxR, Math.max(minR, leaf.r * 0.55 + targetR * 0.45));
+      return {
+        id: bot.bot_key,
+        bot,
+        r,
+        x: leaf.x + packPad,
+        y: leaf.y + packPad,
+        wx: 0,
+        wy: 0,
+        wz: 0,
+      };
+    });
 }
 
-function layoutSphereNodes(bots: BubbleBot[], sphereRadius: number, isNarrow: boolean): LayoutNode[] {
-  return bots.map((bot, index) => {
-    const pos = spherePosition(index, bots.length, sphereRadius, bot.bot_key);
+function layoutSphereNodes(bots: BubbleBot[], worldRadius: number, isNarrow: boolean): LayoutNode[] {
+  const groups = groupBotsByDeployment(bots);
+  if (!groups.length) return [];
+
+  // 单团体积：随规模放大，避免大团成员黏成一团
+  const clusterRadii = groups.map(([, members]) => {
+    const n = members.length;
+    return worldRadius * Math.min(0.58, 0.14 + 0.07 * Math.sqrt(n) + 0.0055 * n);
+  });
+  const centers = placeScatteredCenters(groups, clusterRadii, worldRadius);
+
+  const nodes: LayoutNode[] = [];
+  groups.forEach(([, members], groupIndex) => {
+    const center = centers[groupIndex]!;
+    const clusterR = clusterRadii[groupIndex]!;
+    const positions = members.map((bot, index) =>
+      spaceClusterMember(center, clusterR, index, members.length, bot.bot_key),
+    );
+    separateClusterMembers(positions, center, clusterR, isNarrow);
+
+    members.forEach((bot, index) => {
+      const pos = positions[index]!;
+      nodes.push({
+        id: bot.bot_key,
+        bot,
+        r: sphereNodeRadius(bot, isNarrow),
+        x: 0,
+        y: 0,
+        wx: pos.x,
+        wy: pos.y,
+        wz: pos.z,
+      });
+    });
+  });
+  return nodes;
+}
+
+/** 团内轻量互斥，避免头像黏成一团。 */
+function separateClusterMembers(
+  positions: Vec3[],
+  center: Vec3,
+  clusterRadius: number,
+  isNarrow: boolean,
+): void {
+  if (positions.length < 2) return;
+  const minDist = (isNarrow ? 36 : 44) * (positions.length >= 20 ? 1.15 : 1);
+  const maxR = clusterRadius * 1.08;
+
+  for (let iter = 0; iter < 5; iter++) {
+    for (let i = 0; i < positions.length; i++) {
+      for (let j = i + 1; j < positions.length; j++) {
+        const a = positions[i]!;
+        const b = positions[j]!;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dz = a.z - b.z;
+        const dist = Math.hypot(dx, dy, dz) || 1e-3;
+        if (dist >= minDist) continue;
+        const push = ((minDist - dist) / dist) * 0.45;
+        const ox = dx * push;
+        const oy = dy * push;
+        const oz = dz * push;
+        positions[i] = { x: a.x + ox, y: a.y + oy, z: a.z + oz };
+        positions[j] = { x: b.x - ox, y: b.y - oy, z: b.z - oz };
+      }
+    }
+    for (let i = 0; i < positions.length; i++) {
+      const p = positions[i]!;
+      const lx = p.x - center.x;
+      const ly = p.y - center.y;
+      const lz = p.z - center.z;
+      const mag = Math.hypot(lx, ly, lz);
+      if (mag > maxR) {
+        const s = maxR / mag;
+        positions[i] = {
+          x: center.x + lx * s,
+          y: center.y + ly * s,
+          z: center.z + lz * s,
+        };
+      }
+    }
+  }
+}
+
+/** 星团中心体积散布（非圆周/球面），轴对齐软夹紧，避免被推成环。 */
+function placeScatteredCenters(
+  groups: Array<[string, BubbleBot[]]>,
+  clusterRadii: number[],
+  worldRadius: number,
+): Vec3[] {
+  const centers: Vec3[] = groups.map(([depId], index) => {
+    if (index === 0) {
+      // 最大团靠空间中部，带一点深度偏移
+      return {
+        x: (hashUnit(depId) - 0.5) * worldRadius * 0.14,
+        y: (hashUnit(`${depId}:y`) - 0.5) * worldRadius * 0.12,
+        z: (hashUnit(`${depId}:z`) - 0.5) * worldRadius * 0.2,
+      };
+    }
+    const dir = hashUnitDirection(`${depId}:center`);
+    const radial = worldRadius * (0.22 + 0.72 * Math.cbrt(hashUnit(`${depId}:radial`)));
     return {
-      id: bot.bot_key,
-      bot,
-      r: sphereNodeRadius(bot, isNarrow),
-      x: 0,
-      y: 0,
-      wx: pos.x,
-      wy: pos.y,
-      wz: pos.z,
+      x: dir.x * radial,
+      y: dir.y * radial * 0.88,
+      z: dir.z * radial,
     };
   });
+
+  const cap = worldRadius * 0.98;
+  for (let iter = 0; iter < 6; iter++) {
+    for (let i = 0; i < centers.length; i++) {
+      let c = centers[i]!;
+      const r = clusterRadii[i]!;
+      for (let j = 0; j < centers.length; j++) {
+        if (i === j) continue;
+        const other = centers[j]!;
+        const dx = c.x - other.x;
+        const dy = c.y - other.y;
+        const dz = c.z - other.z;
+        const dist = Math.hypot(dx, dy, dz) || 1e-3;
+        const minDist = (r + clusterRadii[j]!) * 0.88 + worldRadius * 0.05;
+        if (dist < minDist) {
+          const push = ((minDist - dist) / dist) * 0.5;
+          c = { x: c.x + dx * push, y: c.y + dy * push, z: c.z + dz * push };
+        }
+      }
+      // 盒夹紧：勿投影回球面，否则中心又会落成一圈
+      centers[i] = {
+        x: Math.min(cap, Math.max(-cap, c.x)),
+        y: Math.min(cap * 0.9, Math.max(-cap * 0.9, c.y)),
+        z: Math.min(cap, Math.max(-cap, c.z)),
+      };
+    }
+  }
+  return centers;
+}
+
+/**
+ * 星团内三维高斯云：中心更密、四周发散，含球心，无规则球面外层。
+ */
+function spaceClusterMember(
+  center: Vec3,
+  clusterRadius: number,
+  _index: number,
+  total: number,
+  seed: string,
+): Vec3 {
+  // 高斯更散：大团尤甚，减少头像叠在一起
+  const spread = total >= 20 ? 0.62 : total >= 8 ? 0.52 : total >= 4 ? 0.42 : 0.34;
+  const sx = clusterRadius * spread;
+  const sy = clusterRadius * spread * 0.92;
+  const sz = clusterRadius * spread * 1.08;
+  let x = hashSignedGaussian(`${seed}:x`) * sx;
+  let y = hashSignedGaussian(`${seed}:y`) * sy;
+  let z = hashSignedGaussian(`${seed}:z`) * sz;
+  const mag = Math.hypot(x, y, z);
+  const maxR = clusterRadius * 1.05;
+  if (mag > maxR) {
+    const s = maxR / mag;
+    x *= s;
+    y *= s;
+    z *= s;
+  }
+  return {
+    x: center.x + x,
+    y: center.y + y,
+    z: center.z + z,
+  };
+}
+
+function hashSignedGaussian(seed: string): number {
+  const a = Math.max(1e-6, hashUnit(`${seed}:a`));
+  const b = hashUnit(`${seed}:b`);
+  return Math.sqrt(-2 * Math.log(a)) * Math.cos(Math.PI * 2 * b);
+}
+
+/** 由种子生成近似各向同性的单位方向（不规则，非斐波那契球面）。 */
+function hashUnitDirection(seed: string): Vec3 {
+  const g0 = hashSignedGaussian(`${seed}:d0`);
+  const g1 = hashSignedGaussian(`${seed}:d1`);
+  const g2 = hashSignedGaussian(`${seed}:d2`);
+  const mag = Math.hypot(g0, g1, g2) || 1;
+  return { x: g0 / mag, y: g1 / mag, z: g2 / mag };
 }
 
 function sphereNodeRadius(bot: BubbleBot, isNarrow: boolean): number {
   return nodeRadius(bot, isNarrow) * (isNarrow ? 0.84 : 0.86);
 }
 
+function activitySizeUnit(weight: number): number {
+  const t = Math.log1p(Math.max(0, weight || 0)) / Math.log1p(12_000);
+  return Math.min(1, Math.max(0, t));
+}
+
+/** 平铺热度档位：低 / 中 / 高拉开，避免全挤在 log 中段看不出差别。 */
+function flatHeatUnit(weight: number): number {
+  const w = Math.max(0, weight || 0);
+  if (w <= 80) return 0.06 + 0.14 * (w / 80);
+  if (w <= 500) return 0.2 + 0.25 * ((w - 80) / 420);
+  if (w <= 2_000) return 0.45 + 0.25 * ((w - 500) / 1_500);
+  if (w <= 6_000) return 0.7 + 0.18 * ((w - 2_000) / 4_000);
+  return Math.min(1, 0.88 + 0.12 * ((w - 6_000) / 6_000));
+}
+
+function flatPackValue(bot: BubbleBot): number {
+  const heat = flatHeatUnit(bot.message_weight);
+  // 冷热有差，但整体偏克制
+  return 6 + 16 * heat;
+}
+
 function nodeRadius(bot: BubbleBot, isNarrow: boolean): number {
-  const weight = Math.sqrt(bot.message_weight || 0) + 8;
-  const minR = isNarrow ? 18 : 22;
-  const maxR = isNarrow ? 52 : 68;
-  return Math.min(maxR, Math.max(minR, minR + weight * 0.75));
+  // 立体：仍保持很轻的尺寸差
+  const minR = isNarrow ? 24 : 28;
+  const maxR = isNarrow ? 29 : 33;
+  return minR + (maxR - minR) * activitySizeUnit(bot.message_weight);
 }
 
 function hashUnit(seed: string): number {
@@ -1386,21 +1573,6 @@ function hashUnit(seed: string): number {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0) / 4294967295;
-}
-
-function spherePosition(index: number, total: number, radius: number, seed: string): Vec3 {
-  const offset = 2 / total;
-  const inc = Math.PI * (3 - Math.sqrt(5));
-  const jitter = (hashUnit(seed) - 0.5) * 0.03;
-  const y = (index * offset - 1) + offset / 2 + jitter;
-  const ring = Math.sqrt(Math.max(0, 1 - y * y));
-  const phi = index * inc + jitter * 0.35;
-  const surface = radius * 1.03;
-  return {
-    x: Math.cos(phi) * ring * surface,
-    y: y * surface,
-    z: Math.sin(phi) * ring * surface,
-  };
 }
 
 function rotateY(v: Vec3, angle: number): Vec3 {
@@ -1415,15 +1587,16 @@ function rotateX(v: Vec3, angle: number): Vec3 {
   return { x: v.x, y: v.y * c - v.z * s, z: v.y * s + v.z * c };
 }
 
-function project(v: Vec3, focal: number, cx: number, cy: number, sphereRadius: number): Projected {
+function project(v: Vec3, focal: number, cx: number, cy: number, worldRadius: number): Projected {
   const depth = Math.max(focal * 0.12, focal - v.z);
   const layoutScale = focal / depth;
-  const normalized = Math.min(1, Math.max(0, (v.z / sphereRadius + 1) / 2));
-  const bodyScale = 0.84 + 0.2 * normalized;
-  const opacity = 0.12 + 0.88 * normalized ** 1.75;
+  const extent = Math.max(worldRadius * 0.85, 1);
+  const normalized = Math.min(1, Math.max(0, (v.z / extent + 1) / 2));
+  const bodyScale = 0.72 + 0.36 * normalized;
+  const opacity = 0.1 + 0.9 * normalized ** 1.85;
   let depthClass: Projected["depthClass"] = "mid";
   if (normalized >= 0.66) depthClass = "near";
-  else if (normalized <= 0.42) depthClass = "far";
+  else if (normalized <= 0.38) depthClass = "far";
   return {
     x: cx + v.x * layoutScale,
     y: cy + v.y * layoutScale,
@@ -1467,67 +1640,22 @@ function easeCubicInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }
 
-function buildSphereMeshCurves(sphereRadius: number): MeshCurve[] {
-  const curves: MeshCurve[] = [];
-  const segments = 40;
-  const latBands = 4;
-  const lonBands = 6;
-
-  for (let band = 1; band < latBands; band++) {
-    const lat = -Math.PI / 2 + (band / latBands) * Math.PI;
-    const cosLat = Math.cos(lat);
-    const y = sphereRadius * Math.sin(lat);
-    const ring = sphereRadius * cosLat;
-    const points: Vec3[] = [];
-    for (let step = 0; step <= segments; step++) {
-      const lon = (step / segments) * Math.PI * 2;
-      points.push({ x: ring * Math.sin(lon), y, z: ring * Math.cos(lon) });
-    }
-    curves.push({ id: `lat-${band}`, points });
-  }
-
-  for (let band = 0; band < lonBands; band++) {
-    const lon = (band / lonBands) * Math.PI * 2;
-    const points: Vec3[] = [];
-    for (let step = 0; step <= segments; step++) {
-      const lat = -Math.PI / 2 + (step / segments) * Math.PI;
-      const cosLat = Math.cos(lat);
-      points.push({
-        x: sphereRadius * cosLat * Math.sin(lon),
-        y: sphereRadius * Math.sin(lat),
-        z: sphereRadius * cosLat * Math.cos(lon),
-      });
-    }
-    curves.push({ id: `lon-${band}`, points });
-  }
-
-  return curves;
-}
-
-function meshCurveOpacity(avgZ: number, sphereRadius: number): number {
-  const normalized = Math.min(1, Math.max(0, (avgZ / sphereRadius + 1) / 2));
-  return 0.08 + 0.28 * normalized ** 1.4;
-}
-
-function sphereAngularDistance(a: LayoutNode, b: LayoutNode): number {
-  const magA = Math.hypot(a.wx, a.wy, a.wz);
-  const magB = Math.hypot(b.wx, b.wy, b.wz);
-  if (magA < 1 || magB < 1) return Math.PI;
-  const dot = (a.wx * b.wx + a.wy * b.wy + a.wz * b.wz) / (magA * magB);
-  return Math.acos(Math.min(1, Math.max(-1, dot)));
+function spaceDistance(a: LayoutNode, b: LayoutNode): number {
+  return Math.hypot(a.wx - b.wx, a.wy - b.wy, a.wz - b.wz);
 }
 
 function buildRosterLinks(nodes: LayoutNode[], mode: LayoutMode): SimLink[] {
-  const distance = mode === "sphere" ? sphereAngularDistance : flatLayoutDistance;
+  const distance = mode === "sphere" ? spaceDistance : flatLayoutDistance;
   const links: SimLink[] = [];
   const seen = new Set<string>();
 
-  const add = (source: LayoutNode, target: LayoutNode) => {
-    if (source === target) return;
+  const add = (source: LayoutNode, target: LayoutNode): boolean => {
+    if (source === target) return false;
     const key = source.id < target.id ? `${source.id}|${target.id}` : `${target.id}|${source.id}`;
-    if (seen.has(key)) return;
+    if (seen.has(key)) return false;
     seen.add(key);
     links.push({ source, target });
+    return true;
   };
 
   const depIds = new Set<string>();
@@ -1551,7 +1679,61 @@ function buildRosterLinks(nodes: LayoutNode[], mode: LayoutMode): SimLink[] {
     });
   });
 
+  addCrossClusterLinks(nodes, distance, add);
   return links;
+}
+
+/** 星团之间牵少量桥接线：多连向最大团，避免围成一圈。 */
+function addCrossClusterLinks(
+  nodes: LayoutNode[],
+  distance: (a: LayoutNode, b: LayoutNode) => number,
+  add: (source: LayoutNode, target: LayoutNode) => boolean,
+): void {
+  const byDep = new Map<string, LayoutNode[]>();
+  for (const node of nodes) {
+    const depId = primaryDeploymentId(node.bot);
+    const list = byDep.get(depId);
+    if (list) list.push(node);
+    else byDep.set(depId, [node]);
+  }
+  const deps = [...byDep.keys()].sort((a, b) => {
+    const sizeDiff = (byDep.get(b)?.length ?? 0) - (byDep.get(a)?.length ?? 0);
+    return sizeDiff !== 0 ? sizeDiff : a.localeCompare(b);
+  });
+  if (deps.length < 2) return;
+
+  const hubDep = deps[0]!;
+  const hubGroup = byDep.get(hubDep)!;
+
+  for (const depA of deps) {
+    if (depA === hubDep) continue;
+    const groupA = byDep.get(depA)!;
+    const from = groupA[Math.floor(hashUnit(`${depA}:bridge-from`) * groupA.length)]!;
+    const candidates = hubGroup
+      .map((node) => ({ node, dist: distance(from, node) }))
+      .sort((a, b) => a.dist - b.dist);
+    const nearPick = Math.min(
+      candidates.length - 1,
+      Math.floor(hashUnit(`${depA}->hub:near`) * Math.min(4, candidates.length)),
+    );
+    const to = candidates[nearPick]?.node;
+    if (to) add(from, to);
+  }
+
+  // 再补 1–2 条非 hub 旁支，丰富一点但不闭环成环
+  const sideBudget = Math.min(2, Math.max(0, deps.length - 3));
+  for (let n = 0; n < sideBudget; n++) {
+    const depA = deps[1 + (n % Math.max(1, deps.length - 1))]!;
+    if (depA === hubDep) continue;
+    const others = deps.filter((id) => id !== depA && id !== hubDep);
+    if (!others.length) break;
+    const depB = others[Math.floor(hashUnit(`side:${n}:${depA}`) * others.length)]!;
+    const groupA = byDep.get(depA)!;
+    const groupB = byDep.get(depB)!;
+    const from = groupA[Math.floor(hashUnit(`side-from:${depA}`) * groupA.length)]!;
+    const to = groupB[Math.floor(hashUnit(`side-to:${depB}`) * groupB.length)]!;
+    add(from, to);
+  }
 }
 
 function activityTier(weight: number): string {

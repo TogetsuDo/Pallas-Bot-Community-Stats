@@ -31,9 +31,10 @@
   min-width: 0;
 }
 
-.gallery-rail__slot[data-enter="1"] .gallery-msg,
-.gallery-rail__slot[data-enter="1"] .gallery-shot {
-  animation: gallery-card-swap 0.55s var(--ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+/* 仅新挂载的卡片播放进入动画（key=post.id 变化时） */
+.gallery-rail__slot .gallery-msg,
+.gallery-rail__slot .gallery-shot {
+  animation: gallery-card-swap 0.58s var(--ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .gallery-msg {
@@ -196,11 +197,17 @@ html[data-theme="light"] .gallery-shot {
 @keyframes gallery-card-swap {
   0% {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: translateY(14px) scale(0.96);
+    filter: blur(1.5px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
   }
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
@@ -272,8 +279,8 @@ html[data-theme="light"] .gallery-shot {
     display: none;
   }
 
-  .gallery-rail__slot[data-enter="1"] .gallery-msg,
-  .gallery-rail__slot[data-enter="1"] .gallery-shot,
+  .gallery-rail__slot .gallery-msg,
+  .gallery-rail__slot .gallery-shot,
   .gallery-msg,
   .gallery-shot {
     animation: none;
