@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from urllib.parse import urlparse, urlunparse
 
@@ -14,6 +15,8 @@ from pallas_community_stats.federation_onboarding_models import (
     FederationOnboardingStep,
     FederationPoolStatsPublic,
 )
+
+_logger = logging.getLogger(__name__)
 
 # 与 Pallas-Bot community_stats.endpoints 主备一致（HTTP 接口可 failover）
 STATS_PRIMARY_BASE = "https://stats.pallasbot.top"
@@ -113,7 +116,11 @@ def build_federation_onboarding(settings: Settings, store: StatsStore | None = N
 
     pool_stats: FederationPoolStatsPublic | None = None
     if store is not None:
-        monitor = build_federation_monitor(settings, store)
+        try:
+            monitor = build_federation_monitor(settings, store)
+        except Exception:
+            _logger.exception("federation onboarding: pool_stats unavailable")
+            monitor = None
         if monitor is not None:
             pool_stats = FederationPoolStatsPublic(
                 members_total=monitor.members_total,
