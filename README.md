@@ -4,10 +4,10 @@
 
 <h1 align="center">Pallas Community Stats</h1>
 
-<p align="center">Pallas-Bot <b>opt-in</b> 社区统计与<b>共享语料</b>中心：接收各部署自愿上报的心跳，提供公开聚合 API 与 Bot 外接语料库（<code>/v1/corpus/*</code>）。</p>
+<p align="center">Pallas-Bot <b>opt-in</b> 社区统计、<b>共享语料</b>与<b>社区投稿墙</b>中心：接收各部署自愿上报的心跳，提供公开聚合 API、Bot 外接语料库（<code>/v1/corpus/*</code>）与投稿 API（<code>/v1/gallery/*</code>）。</p>
 
-- Bot 侧：`community_stats` 插件 + `[corpus]` auto enroll（见 [Pallas-Bot](https://github.com/PallasBot/Pallas-Bot)）
-- HTTP 约定：[docs/API.md](docs/API.md) · 客户端集成：[docs/client-integration.md](docs/client-integration.md)
+- Bot 侧：core 插件 `pb_stats`（业务 `pallas/product/community_stats/`）+ `[corpus]` auto enroll（见 [Pallas-Bot](https://github.com/PallasBot/Pallas-Bot)）
+- HTTP 约定：[docs/API.md](docs/API.md) · 客户端集成：[docs/client-integration.md](docs/client-integration.md) · 主站：[docs/community-hub.md](docs/community-hub.md)
 
 ## 官方公共实例
 
@@ -15,10 +15,11 @@
 
 | 用途 | URL |
 | --- | --- |
-| **社区主站** | `GET /`（概览 + 牛牛气泡墙，见 [docs/community-hub.md](docs/community-hub.md)） |
+| **社区主站** | `GET /`（概览 + 气泡墙 + 投稿墙，见 [docs/community-hub.md](docs/community-hub.md)） |
 | 公开统计 | `GET /v1/stats` |
 | 监控聚合 | `GET /v1/monitor/overview` |
 | 气泡名册 | `GET /v1/roster/bubble` |
+| 社区投稿 | `GET` / `POST` / `DELETE` `/v1/gallery/posts` |
 | 心跳 | `POST /v1/heartbeat` |
 | 健康检查 | `GET /health` |
 | 语料 enroll | `POST /v1/corpus/enroll` |

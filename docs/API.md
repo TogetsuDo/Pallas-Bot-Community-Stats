@@ -54,16 +54,20 @@
 | `sharded` | bool | 否 | 是否分片部署 |
 | `shard_workers` | int | 否 | worker 数量，0–256 |
 | `roster_public` | bool | 否 | 是否公开本部署名册至社区气泡墙；默认 false |
+| `roster_show_qq` | bool | 否 | 是否在公开 API 露出 QQ / 资料卡；默认 true（Bot 默认发 false） |
+| `roster_show_profile` | bool | 否 | 是否在公开 API 露出头像与昵称；默认 true |
 | `roster` | array | 否 | opt-in 名册，最多 256 条；见下表 |
+| `corpus_hot_snapshot` | object | 否 | 可选本机热词快照（供 `GET /v1/corpus/hot?mode=fleet`） |
 
 `roster` 元素：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `qq` | int | Bot QQ 号（中心侧存头像用，公开 API **不返回**） |
+| `qq` | int | Bot QQ 号（中心用于生成头像 / 资料卡；公开 bubble 是否返回取决于 `roster_show_qq`） |
 | `nickname` | string | 展示昵称，最长 64 字符 |
 | `online` | bool | 是否在线 |
 | `message_weight` | int | 活跃度权重（如近 7 天消息量），0–10_000_000 |
+| `show_qq` | bool | 条目级是否允许公开 QQ；默认 true |
 
 `roster_public=false` 或未传 `roster` 时，清除该 deployment 已存名册。
 
@@ -320,6 +324,8 @@
 
 仅包含 **opt-in**（`roster_public=true`）且所属 deployment 在 `online_ttl_sec` 内心跳的牛。同一 QQ 跨部署合并：`online` 取或，`message_weight` 取最大；`deployment_ids` 保留该牛出现的全部部署 UUID（小写）。
 
+公开字段受部署级 `roster_show_qq` / `roster_show_profile` 控制：关闭 QQ 时 `qq` 为 `null`、`profile_url` 为空；关闭头像昵称时用占位昵称且 `avatar_url` 为空。
+
 **200**
 
 ```json
@@ -331,10 +337,10 @@
   "bots": [
     {
       "bot_key": "a1b2…",
-      "qq": 123456789,
+      "qq": null,
       "nickname": "福牛一号",
       "avatar_url": "https://q1.qlogo.cn/g?b=qq&nk=123456789&s=160",
-      "profile_url": "tencent://ntqq-open?subCmd=profile&action=openMiniBuddyProfile&actionParams=…",
+      "profile_url": "",
       "online": true,
       "message_weight": 1280,
       "deployment_ids": ["550e8400-e29b-41d4-a716-446655440000"]
@@ -343,7 +349,7 @@
 }
 ```
 
-页面入口：`GET /`（构建社区主站 SPA 后可用）。详见 [community-hub.md](./community-hub.md)。
+页面入口：`GET /`（社区主站 SPA）。详见 [community-hub.md](./community-hub.md)。
 
 ## 语料 API（`/v1/corpus`）
 
@@ -445,6 +451,52 @@
 `op=upsert_answer`：`keywords`、`answer_keywords`、`message`、`group_id`（社区语料用 `0`）等。  
 `op=insert`：完整 `context` 对象。
 
+## 社区投稿（`/v1/gallery`）
+
+主站「社区投稿」墙与 Bot 控制台代理共用本前缀。`GALLERY_ENABLED=false` 时创建 / 删除返回 **503**。
+
+### 鉴权（写操作）
+
+| 中心配置 | 行为 |
+| --- | --- |
+| `HEARTBEAT_TOKEN` **留空** | `multipart` / Query 带 `deployment_id` 即可写 |
+| `HEARTBEAT_TOKEN` **非空** | 须 `Authorization: Bearer`（心跳 token，且带 `deployment_id`）；或有效语料 Bearer（deployment 由 token 解析） |
+
+列表公开只读，无需鉴权。可选 `deployment_id` 仅返回该部署投稿（控制台「我的」）。
+
+### `GET /v1/gallery/posts`
+
+| Query | 说明 |
+| --- | --- |
+| `limit` | 1–100，默认 48 |
+| `cursor` | 上一页最后一条的 `created_unix`（字符串） |
+| `deployment_id` | 可选，按部署筛选 |
+
+**200** 含 `as_of`、`posts[]`、`next_cursor`。投稿字段：`id`、`text`、`source`（`manual` / `local_corpus`）、`keywords`、`nickname`、`avatar_url`、`qq`、`image_url`、`created_at`、`created_unix`。
+
+### `GET /v1/gallery/images/{post_id}`
+
+返回已发布投稿的图片文件；无图或不存在则 **404**。
+
+### `POST /v1/gallery/posts`
+
+`multipart/form-data`：
+
+| 字段 | 说明 |
+| --- | --- |
+| `text` | 正文，最长 500 字符 |
+| `nickname` | 展示昵称；空则默认「牛牛」 |
+| `avatar_url` / `bot_qq` | 可选；有 `bot_qq` 且无头像时中心可填 QQ 头像 URL |
+| `source` / `keywords` | 可选元数据 |
+| `deployment_id` | 公开写入时必填（见鉴权） |
+| `image` | 可选；`image/jpeg` / `png` / `webp` / `gif`，约 ≤3MB |
+
+正文与图片至少其一。按部署限流：默认每小时 `GALLERY_PER_HOUR`（30）、每日 `GALLERY_PER_DAY`（10）；超限 **429**。
+
+### `DELETE /v1/gallery/posts/{post_id}`
+
+软删除（`status=hidden`），仅本 `deployment_id` 可撤下。鉴权同创建。
+
 ## 环境变量
 
 | 变量 | 默认 | 说明 |
@@ -462,7 +514,11 @@
 | `CORPUS_DEFAULT_CONTRIBUTE` | `true` | 新 enroll 默认是否允许 contribute |
 | `CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN` | `false` | enroll 是否要求心跳 Bearer |
 | `CORPUS_TOKEN_TTL_SEC` | `0` | token 有效期；0 表示不过期 |
+| `GALLERY_ENABLED` | `true` | 是否允许投稿写操作 |
+| `GALLERY_MEDIA_DIR` | `data/gallery` | 投稿图片目录 |
+| `GALLERY_PER_HOUR` | `30` | 单部署每小时投稿上限 |
+| `GALLERY_PER_DAY` | `10` | 单部署每日投稿上限 |
 
 ## 隐私
 
-默认心跳**不**接收 QQ 号列表、群号。仅当部署 **opt-in** `roster_public=true` 时，心跳可附带公开名册（`roster`）供气泡墙展示；公开 API 返回昵称、QQ 号与 `profile_url`（用于唤起 QQ 资料卡），不含群号与消息正文。语料 API 仅存匿名 `keywords` 与短句（`group_id=0`），不含 QQ/群号。
+默认心跳**不**附带名册、群号或消息正文。仅当部署 **opt-in** `roster_public=true` 时，心跳可附带公开名册（`roster`）供气泡墙展示。公开 API 按 `roster_show_qq` / `roster_show_profile` 返回昵称、头像、可选 QQ 与 `profile_url`，不含群号与消息正文。语料 API 仅存匿名 `keywords` 与短句（`group_id=0`），不含 QQ/群号。社区投稿为维护者**主动提交**的公开展示内容（正文与图片），与心跳名册无关。

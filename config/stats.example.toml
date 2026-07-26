@@ -17,11 +17,17 @@ online_ttl_sec = 900
 max_clock_skew_sec = 300
 
 # 语料 API（Bot 外接）；见 docs/API.md § 语料 API
+# 社区投稿墙：见 docs/API.md § 社区投稿
 [env]
 CORPUS_ENABLED = "true"
 CORPUS_PUBLIC_API_BASE = "https://stats.pallasbot.top/v1/corpus"
 CORPUS_DEFAULT_CONTRIBUTE = "true"
 CORPUS_ENROLL_REQUIRES_HEARTBEAT_TOKEN = "false"
+
+# GALLERY_ENABLED = "true"
+# GALLERY_MEDIA_DIR = "data/gallery"
+# GALLERY_PER_HOUR = "30"
+# GALLERY_PER_DAY = "10"
 
 # 多实例 + 公开写入：启用 Redis 分布式限流
 # REDIS_URL = "redis://127.0.0.1:6379/1"
