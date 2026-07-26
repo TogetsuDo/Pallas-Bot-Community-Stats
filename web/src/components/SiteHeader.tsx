@@ -6,8 +6,8 @@ import type { HubThemeMode } from "@/theme";
 const NAV = [
   { href: "#bubble", label: "牛牛" },
   { href: "#metrics", label: "指标" },
-  { href: "#wordcloud", label: "热词" },
   { href: "#gallery", label: "投稿" },
+  { href: "#wordcloud", label: "热词" },
 ] as const;
 
 const THEMES: { mode: HubThemeMode; label: string }[] = [

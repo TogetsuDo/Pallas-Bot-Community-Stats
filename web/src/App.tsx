@@ -48,8 +48,8 @@ export function App() {
           loading={overview.isLoading}
           error={overview.error ? (overview.error as Error).message : null}
         />
-        <WordCloudSection />
         <GallerySection />
+        <WordCloudSection />
       </main>
       <SiteFooter />
     </div>
