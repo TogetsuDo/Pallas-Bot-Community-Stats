@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { App } from "@/App";
 import { AdminPage } from "@/pages/AdminPage";
+import { SubmitPage } from "@/pages/SubmitPage";
 import brandMarkUrl from "@/assets/brand-avatar.png?url";
 import "@fontsource/poppins/400.css";
 import "@fontsource/poppins/500.css";
@@ -44,10 +45,11 @@ if (!rootEl) throw new Error("#root missing");
 
 const path = window.location.pathname.replace(/\/+$/, "") || "/";
 const isAdmin = path === "/admin";
+const isSubmit = path === "/submit";
 
 createRoot(rootEl).render(
   <QueryClientProvider client={queryClient}>
-    {isAdmin ? <AdminPage /> : <App />}
+    {isAdmin ? <AdminPage /> : isSubmit ? <SubmitPage /> : <App />}
   </QueryClientProvider>,
 );
 

@@ -53,4 +53,9 @@ def register_hub_routes(app) -> None:
     async def hub_admin() -> FileResponse:
         return hub_spa()
 
+    @router.get("/submit")
+    @router.get("/submit/")
+    async def hub_submit() -> FileResponse:
+        return hub_spa()
+
     app.include_router(router)

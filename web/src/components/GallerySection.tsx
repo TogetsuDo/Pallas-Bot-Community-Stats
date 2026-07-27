@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { fetchGalleryPosts, type GalleryPost } from "@/api/gallery";
+import { Button } from "@/components/ui/button";
 import "@/styles/gallery.css";
 
 const ROTATE_MS = 4200;
@@ -240,14 +241,19 @@ export function GallerySection() {
       className="scroll-mt-20 border-b border-[var(--border)] py-12 sm:py-14"
     >
       <div className="mx-auto max-w-[var(--content-max)] px-[var(--page-gutter)]">
-        <div className="mb-5">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-            Gallery
-          </p>
-          <h2 className="text-xl font-semibold text-[var(--text)]">社区投稿</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            随机抽取展示；每次只轮换一张，淡入切换。正文碎片会轻轻飘落。
-          </p>
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              Gallery
+            </p>
+            <h2 className="text-xl font-semibold text-[var(--text)]">社区投稿</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              随机抽取展示；每次只轮换一张，淡入切换。正文碎片会轻轻飘落。
+            </p>
+          </div>
+          <Button size="lg" asChild className="w-full shrink-0 sm:w-auto">
+            <a href="/submit">我要投稿</a>
+          </Button>
         </div>
 
         {!enabled || loading ? (
@@ -260,7 +266,8 @@ export function GallerySection() {
           </p>
         ) : !posts.length ? (
           <div className="gallery-stage gallery-stage--empty text-sm text-[var(--text-muted)]">
-            暂无投稿。可在 Bot 控制台「社区统计与语料 → 社区投稿」添加。
+            暂无投稿。<a href="/submit" className="text-[var(--accent)] underline-offset-2 hover:underline">我要投稿</a>
+            ，或在 Bot 控制台「统计与语料 → 社区投稿」添加。
           </div>
         ) : (
           <div className="gallery-stage">

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, Request, UploadFile, status
@@ -17,6 +18,7 @@ from pallas_community_stats.gallery_models import (
     GalleryPostPublic,
 )
 from pallas_community_stats.gallery_store import GalleryStore
+from pallas_community_stats.ratelimit import RateLimitExceeded, check_heartbeat_rate_limit, client_ip
 from pallas_community_stats.roster_util import qq_avatar_url
 
 ALLOWED_IMAGE_TYPES = {
@@ -52,6 +54,130 @@ def _public_post(request: Request, row) -> GalleryPostPublic:
         image_url=image_url,
         created_at=_iso_from_unix(row.created_unix),
         created_unix=row.created_unix,
+    )
+
+
+def _public_deployment_id(visitor_id: str) -> str:
+    return f"web-{visitor_id}"
+
+
+def _validate_visitor_id(raw: str | None) -> str:
+    vid = (raw or "").strip().lower()
+    try:
+        uuid.UUID(vid)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid visitor_id") from exc
+    return vid
+
+
+async def _read_image_upload(image: UploadFile | None) -> tuple[bytes | None, str | None]:
+    if image is None or not image.filename:
+        return None, None
+    content_type = (image.content_type or "").split(";")[0].strip().lower()
+    image_ext = ALLOWED_IMAGE_TYPES.get(content_type)
+    if not image_ext:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported image type")
+    image_raw = await image.read()
+    if len(image_raw) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="image too large")
+    if not image_raw:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty image")
+    return image_raw, image_ext
+
+
+def _check_gallery_rate_limit(
+    *,
+    store: GalleryStore,
+    deployment_id: str,
+    per_hour: int,
+    per_day: int,
+) -> None:
+    now = int(time.time())
+    hour_n = store.count_since(deployment_id=deployment_id, since_unix=now - 3600)
+    if hour_n >= per_hour:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="hourly limit exceeded")
+    day_n = store.count_since(deployment_id=deployment_id, since_unix=now - 86400)
+    if day_n >= per_day:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="daily limit exceeded")
+
+
+async def _create_gallery_post(
+    *,
+    store: GalleryStore,
+    settings: Settings,
+    censor: BaiduCensorClient | None,
+    deployment_id: str,
+    text: str,
+    source: str,
+    keywords: str,
+    nickname: str,
+    avatar_url: str,
+    bot_qq: int | None,
+    image_raw: bytes | None,
+    image_ext: str | None,
+    per_hour: int,
+    per_day: int,
+    require_image: bool = False,
+) -> GalleryCreateResponse:
+    body = (text or "").strip()
+    if len(body) > MAX_TEXT_CHARS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text too long")
+    nick = (nickname or "").strip() or "牛牛"
+
+    _check_gallery_rate_limit(
+        store=store,
+        deployment_id=deployment_id,
+        per_hour=per_hour,
+        per_day=per_day,
+    )
+
+    if require_image and not image_raw:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="image required")
+    if not body and not image_raw:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text or image required")
+
+    mod = await moderate_gallery_content(
+        censor=censor,
+        settings=settings,
+        text=body,
+        image_bytes=image_raw,
+    )
+    if mod.rejected:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="content rejected by moderation",
+        )
+
+    image_rel: str | None = None
+    if image_raw and image_ext:
+        yyyy = datetime.now(UTC).strftime("%Y")
+        rel = f"{yyyy}/{uuid_name()}{image_ext}"
+        dest = store.media_root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(image_raw)
+        image_rel = rel
+
+    av = (avatar_url or "").strip()
+    if not av and bot_qq:
+        av = qq_avatar_url(int(bot_qq))
+
+    now = int(time.time())
+    row = store.create_post(
+        deployment_id=deployment_id,
+        text=body,
+        source=source,
+        keywords=keywords,
+        bot_qq=int(bot_qq) if bot_qq else None,
+        nickname=nick,
+        avatar_url=av,
+        image_relpath=image_rel,
+        created_unix=now,
+        status=mod.status,
+    )
+    return GalleryCreateResponse(
+        id=row.id,
+        created_at=_iso_from_unix(row.created_unix),
+        status=row.status if row.status in {"published", "pending", "hidden"} else "published",
     )
 
 
@@ -133,77 +259,64 @@ def build_gallery_router(
         if not settings.gallery_enabled:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="gallery disabled")
         deployment_id = deployment_from_auth(authorization, deployment_id)
-
-        body = (text or "").strip()
-        if len(body) > MAX_TEXT_CHARS:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text too long")
-        nick = (nickname or "").strip() or "牛牛"
-
-        now = int(time.time())
-        hour_n = store.count_since(deployment_id=deployment_id, since_unix=now - 3600)
-        if hour_n >= settings.gallery_per_hour:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="hourly limit exceeded")
-        day_n = store.count_since(deployment_id=deployment_id, since_unix=now - 86400)
-        if day_n >= settings.gallery_per_day:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="daily limit exceeded")
-
-        image_raw: bytes | None = None
-        image_ext: str | None = None
-        if image is not None and image.filename:
-            content_type = (image.content_type or "").split(";")[0].strip().lower()
-            image_ext = ALLOWED_IMAGE_TYPES.get(content_type)
-            if not image_ext:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported image type")
-            image_raw = await image.read()
-            if len(image_raw) > MAX_IMAGE_BYTES:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="image too large")
-            if not image_raw:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty image")
-
-        if not body and not image_raw:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="text or image required")
-
-        mod = await moderate_gallery_content(
-            censor=censor,
+        image_raw, image_ext = await _read_image_upload(image)
+        return await _create_gallery_post(
+            store=store,
             settings=settings,
-            text=body,
-            image_bytes=image_raw,
-        )
-        if mod.rejected:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="content rejected by moderation",
-            )
-
-        image_rel: str | None = None
-        if image_raw and image_ext:
-            yyyy = datetime.now(UTC).strftime("%Y")
-            rel = f"{yyyy}/{uuid_name()}{image_ext}"
-            dest = store.media_root / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(image_raw)
-            image_rel = rel
-
-        av = (avatar_url or "").strip()
-        if not av and bot_qq:
-            av = qq_avatar_url(int(bot_qq))
-
-        row = store.create_post(
+            censor=censor,
             deployment_id=deployment_id,
-            text=body,
+            text=text,
             source=source,
             keywords=keywords,
-            bot_qq=int(bot_qq) if bot_qq else None,
-            nickname=nick,
-            avatar_url=av,
-            image_relpath=image_rel,
-            created_unix=now,
-            status=mod.status,
+            nickname=nickname,
+            avatar_url=avatar_url,
+            bot_qq=bot_qq,
+            image_raw=image_raw,
+            image_ext=image_ext,
+            per_hour=settings.gallery_per_hour,
+            per_day=settings.gallery_per_day,
         )
-        return GalleryCreateResponse(
-            id=row.id,
-            created_at=_iso_from_unix(row.created_unix),
-            status=row.status if row.status in {"published", "pending", "hidden"} else "published",
+
+    @router.post("/public/posts", response_model=GalleryCreateResponse)
+    async def create_public_post(
+        request: Request,
+        visitor_id: str = Form(...),
+        text: str = Form(default=""),
+        nickname: str = Form(default=""),
+        image: UploadFile = File(...),
+    ) -> GalleryCreateResponse:
+        if not settings.gallery_enabled:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="gallery disabled")
+        if not settings.gallery_public_enabled:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="gallery public disabled")
+        vid = _validate_visitor_id(visitor_id)
+        deployment_id = _public_deployment_id(vid)
+        try:
+            check_heartbeat_rate_limit(
+                client_host=client_ip(request),
+                deployment_id=deployment_id,
+                per_ip_per_min=settings.heartbeat_rate_per_ip_per_min,
+                min_interval_per_deployment_sec=settings.heartbeat_min_interval_sec,
+            )
+        except RateLimitExceeded as exc:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
+        image_raw, image_ext = await _read_image_upload(image)
+        return await _create_gallery_post(
+            store=store,
+            settings=settings,
+            censor=censor,
+            deployment_id=deployment_id,
+            text=text,
+            source="manual",
+            keywords="",
+            nickname=nickname,
+            avatar_url="",
+            bot_qq=None,
+            image_raw=image_raw,
+            image_ext=image_ext,
+            per_hour=settings.gallery_public_per_hour,
+            per_day=settings.gallery_public_per_day,
+            require_image=True,
         )
 
     @router.delete("/posts/{post_id}", response_model=GalleryDeleteResponse)
