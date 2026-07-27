@@ -22,8 +22,6 @@ function pickClipboardImage(dt: DataTransfer | null): File | null {
 
 export function SubmitPage() {
   const { mode, setTheme } = useHubTheme();
-  const [nickname, setNickname] = useState("");
-  const [text, setText] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,12 +77,9 @@ export function SubmitPage() {
       const result = await createPublicGalleryPost({
         visitorId: getGalleryVisitorId(),
         image,
-        nickname,
-        text,
       });
       setSuccess(result.status === "pending" ? "pending" : "published");
       setImage(null);
-      setText("");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -116,79 +111,46 @@ export function SubmitPage() {
         </div>
 
         <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="submit-nickname" className="text-sm font-medium text-[var(--text)]">
-                  展示昵称（可选）
-                </label>
-                <input
-                  id="submit-nickname"
-                  type="text"
-                  maxLength={32}
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="不填则显示「牛牛」"
-                  className="h-10 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-elev)] px-3 text-sm text-[var(--text)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_45%,var(--border))]"
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-[var(--text)]">图片</div>
+            <label
+              className={cn(
+                "flex min-h-[240px] cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-dashed px-4 py-8 text-center transition-colors",
+                dragOver
+                  ? "border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                  : "border-[var(--border)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,var(--border))]",
+              )}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={onDrop}
+            >
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="sr-only"
+                onChange={(e) => applyImageFile(e.target.files?.[0])}
+              />
+              {imagePreviewUrl ? (
+                <img
+                  src={imagePreviewUrl}
+                  alt="投稿预览"
+                  className="max-h-64 max-w-full rounded-[var(--radius-sm)] object-contain"
                 />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="submit-text" className="text-sm font-medium text-[var(--text)]">
-                  配文（可选）
-                </label>
-                <textarea
-                  id="submit-text"
-                  rows={4}
-                  maxLength={500}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="给图片加一句说明…"
-                  className="w-full resize-y rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--bg-elev)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[color-mix(in_srgb,var(--accent)_45%,var(--border))]"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-sm font-medium text-[var(--text)]">图片（必填）</div>
-              <label
-                className={cn(
-                  "flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-dashed px-4 py-8 text-center transition-colors",
-                  dragOver
-                    ? "border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-                    : "border-[var(--border)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,var(--border))]",
-                )}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onDrop}
-              >
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="sr-only"
-                  onChange={(e) => applyImageFile(e.target.files?.[0])}
-                />
-                {imagePreviewUrl ? (
-                  <img
-                    src={imagePreviewUrl}
-                    alt="投稿预览"
-                    className="max-h-56 max-w-full rounded-[var(--radius-sm)] object-contain"
-                  />
-                ) : (
-                  <>
-                    <div className="text-sm text-[var(--text)]">点击选择、拖拽或 Ctrl+V 粘贴图片</div>
-                    <div className="text-xs text-[var(--text-muted)]">JPEG / PNG / WebP / GIF，最大约 3MB</div>
-                  </>
-                )}
-              </label>
-              {image ? (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setImage(null)}>
-                  移除图片
-                </Button>
-              ) : null}
-            </div>
+              ) : (
+                <>
+                  <div className="text-sm text-[var(--text)]">点击选择、拖拽或 Ctrl+V 粘贴图片</div>
+                  <div className="text-xs text-[var(--text-muted)]">JPEG / PNG / WebP / GIF，最大约 3MB</div>
+                </>
+              )}
+            </label>
+            {image ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setImage(null)}>
+                移除图片
+              </Button>
+            ) : null}
           </div>
 
           {error ? (
@@ -206,7 +168,7 @@ export function SubmitPage() {
 
           <div className="mt-5 flex flex-col gap-3 border-t border-[var(--border)] pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-              每人每日投稿次数有限；带图投稿在主站以截图形式展示。
+              每人每日投稿次数有限；通过后会出现在首页投稿墙。
             </p>
             <Button type="button" size="lg" disabled={busy || !image} onClick={() => void onSubmit()}>
               {busy ? "提交中…" : "投稿到社区中心"}

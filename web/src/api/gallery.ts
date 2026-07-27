@@ -39,14 +39,10 @@ export function isGalleryImageType(type: string): boolean {
 export async function createPublicGalleryPost(opts: {
   visitorId: string;
   image: File;
-  nickname?: string;
-  text?: string;
 }): Promise<GalleryCreateResult> {
   const form = new FormData();
   form.append("visitor_id", opts.visitorId);
   form.append("image", opts.image, opts.image.name || "upload");
-  if (opts.nickname?.trim()) form.append("nickname", opts.nickname.trim());
-  if (opts.text?.trim()) form.append("text", opts.text.trim());
 
   const resp = await fetch("/v1/gallery/public/posts", {
     method: "POST",

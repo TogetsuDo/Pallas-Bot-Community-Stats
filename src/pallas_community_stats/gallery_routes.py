@@ -281,8 +281,6 @@ def build_gallery_router(
     async def create_public_post(
         request: Request,
         visitor_id: str = Form(...),
-        text: str = Form(default=""),
-        nickname: str = Form(default=""),
         image: UploadFile = File(...),
     ) -> GalleryCreateResponse:
         if not settings.gallery_enabled:
@@ -306,10 +304,10 @@ def build_gallery_router(
             settings=settings,
             censor=censor,
             deployment_id=deployment_id,
-            text=text,
+            text="",
             source="manual",
             keywords="",
-            nickname=nickname,
+            nickname="",
             avatar_url="",
             bot_qq=None,
             image_raw=image_raw,

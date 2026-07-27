@@ -114,12 +114,11 @@ def test_gallery_public_post_image(tmp_path: Path) -> None:
     )
     created = client.post(
         "/v1/gallery/public/posts",
-        data={"visitor_id": visitor, "nickname": "路人甲", "text": "梗图一枚"},
+        data={"visitor_id": visitor},
         files={"image": ("meme.png", png, "image/png")},
     )
     assert created.status_code == 200, created.text
     listed = client.get("/v1/gallery/posts")
     post = listed.json()["posts"][0]
-    assert post["nickname"] == "路人甲"
-    assert post["text"] == "梗图一枚"
+    assert post["text"] == ""
     assert post["image_url"]
