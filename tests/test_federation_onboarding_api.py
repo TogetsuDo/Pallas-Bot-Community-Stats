@@ -30,6 +30,9 @@ def test_onboarding_returns_secret_and_steps(onboarding_client: TestClient) -> N
     assert body["coord"]["port"] == 6380
     assert ":redis-pass@" not in body["coord"]["redis_url_display"]
     assert len(body["steps"]) >= 3
+    titles = [s["title"] for s in body["steps"]]
+    assert any("自动入池" in t for t in titles)
+    assert "粘贴入池密钥" not in titles
 
 
 def test_onboarding_disabled_when_bootstrap_off(tmp_path, monkeypatch) -> None:

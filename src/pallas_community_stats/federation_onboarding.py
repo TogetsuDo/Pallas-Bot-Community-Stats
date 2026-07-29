@@ -74,23 +74,29 @@ def build_federation_onboarding(settings: Settings, store: StatsStore | None = N
     steps = [
         FederationOnboardingStep(
             order=1,
-            title="打开联邦设置页",
-            detail="控制台 → 通用配置 → 联邦控制面；保持「控制面」为开启（默认已是开启）。",
+            title="保持多机协同开启",
+            detail="控制台 → 通用配置 → 多机协同（联邦控制面）；「控制面」默认已开启，一般不用改。",
         ),
         FederationOnboardingStep(
             order=2,
-            title="粘贴入池密钥",
-            detail="把本页复制的「入池密钥」填到「实例密钥」一栏，点保存并热重载。",
+            title="新版本可自动入池",
+            detail=(
+                "较新版本 Bot：密钥可留空，启动时会从本中心自动写入入池密钥，"
+                "并拉取协同池编号与去重服务器地址。旧版本仍可把本页「入池密钥」粘贴到「实例密钥」后保存。"
+            ),
         ),
         FederationOnboardingStep(
             order=3,
-            title="等待自动拉取配置",
-            detail="保存后牛牛会自动向中心领取联邦池编号和去重服务器地址，一般无需手填。",
+            title="确认已领到配置",
+            detail=(
+                "在「统计与语料 → 多机协同」看本部署状态：入池密钥应为已配置，中心配置应为已获取；"
+                "「重复消息去重」保持「自动」或「开启」。"
+            ),
         ),
         FederationOnboardingStep(
             order=4,
-            title="确认已开启去重",
-            detail="「重复消息去重」保持「自动」或「开启」即可；多套牛牛共用同一去重服务，中心不会替你转发群消息。",
+            title="多套牛牛共用同一池",
+            detail="同一协同池内的部署才会互相去重、并把对方认成 bot；中心不转发群消息，牛牛直连去重服务。",
         ),
         FederationOnboardingStep(
             order=5,
@@ -101,12 +107,15 @@ def build_federation_onboarding(settings: Settings, store: StatsStore | None = N
 
     summary = (
         "加入同一社区联邦池后，多套自托管牛牛不会对同一条群消息各回复一遍。"
-        "去重用的服务器地址由中心自动下发，牛牛直连该服务，聊天内容不经中心转发。"
+        "较新版本可自动写入入池密钥并领取去重地址；牛牛直连去重服务，聊天内容不经中心转发。"
     )
-    secret_hint = "这是加入联邦池的口令，填进控制台即可；请勿发到公开群或提交到 git。与共享语料口令、统计心跳无关。"
+    secret_hint = (
+        "这是加入联邦池的口令。新版本一般会自动写入，也可手动复制到「多机协同 → 实例密钥」。"
+        "请勿发到公开群或提交到 git。与共享语料口令、统计心跳无关。"
+    )
 
     coord_hint = (
-        "去重走专用地址（下方 host:端口），不是网页链接；含密码的完整连接在填好密钥并由中心自动下发后生效。"
+        "去重走专用地址（下方 host:端口），不是网页链接；含密码的完整连接由中心在领取配置时下发。"
         "备站域名只替代统计/语料等网页接口，不能代替去重服务器地址。"
     )
     failover_note = (
