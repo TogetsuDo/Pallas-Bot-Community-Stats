@@ -107,6 +107,31 @@ class CorpusStore:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS corpus_aggregate_stats (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    contexts_total INTEGER NOT NULL DEFAULT 0,
+                    answers_total INTEGER NOT NULL DEFAULT 0,
+                    answer_hits_sum INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO corpus_aggregate_stats (
+                    id, contexts_total, answers_total, answer_hits_sum
+                )
+                SELECT
+                    1,
+                    (SELECT COUNT(*) FROM corpus_contexts),
+                    (SELECT COUNT(*) FROM corpus_answers),
+                    (SELECT COALESCE(SUM(count), 0) FROM corpus_answers)
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM corpus_aggregate_stats WHERE id = 1
+                )
+                """
+            )
             conn.commit()
 
     def enroll(
@@ -201,6 +226,13 @@ class CorpusStore:
         ctx_time = int(context_time) if context_time > 0 else now
         trigger = max(1, len(answers))
         with self._lock, self._connect() as conn:
+            context_exists = (
+                conn.execute(
+                    "SELECT 1 FROM corpus_contexts WHERE keywords_hash = ?",
+                    (khash,),
+                ).fetchone()
+                is not None
+            )
             conn.execute(
                 """
                 INSERT INTO corpus_contexts (keywords_hash, keywords, time, trigger_count, clear_time)
@@ -211,8 +243,10 @@ class CorpusStore:
                 """,
                 (khash, keywords, ctx_time, trigger),
             )
+            answers_delta = 0
+            answer_hits_delta = 0
             for ans in answers:
-                self._upsert_answer_row(
+                created, hits_delta = self._upsert_answer_row(
                     conn,
                     khash=khash,
                     group_id=0,
@@ -223,6 +257,14 @@ class CorpusStore:
                     preset_count=int(ans.get("count") or 1),
                     preset_messages=[str(m) for m in (ans.get("messages") or []) if m is not None],
                 )
+                answers_delta += int(created)
+                answer_hits_delta += hits_delta
+            self._update_aggregate_stats(
+                conn,
+                contexts_delta=0 if context_exists else 1,
+                answers_delta=answers_delta,
+                answer_hits_delta=answer_hits_delta,
+            )
             conn.commit()
 
     def upsert_answer(
@@ -260,7 +302,7 @@ class CorpusStore:
                     """,
                     (atime, khash),
                 )
-            self._upsert_answer_row(
+            created, answer_hits_delta = self._upsert_answer_row(
                 conn,
                 khash=khash,
                 group_id=int(group_id),
@@ -269,7 +311,34 @@ class CorpusStore:
                 message=message,
                 append_on_existing=append_on_existing,
             )
+            self._update_aggregate_stats(
+                conn,
+                contexts_delta=0 if exists else 1,
+                answers_delta=int(created),
+                answer_hits_delta=answer_hits_delta,
+            )
             conn.commit()
+
+    def _update_aggregate_stats(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        contexts_delta: int = 0,
+        answers_delta: int = 0,
+        answer_hits_delta: int = 0,
+    ) -> None:
+        if not (contexts_delta or answers_delta or answer_hits_delta):
+            return
+        conn.execute(
+            """
+            UPDATE corpus_aggregate_stats
+            SET contexts_total = contexts_total + ?,
+                answers_total = answers_total + ?,
+                answer_hits_sum = answer_hits_sum + ?
+            WHERE id = 1
+            """,
+            (contexts_delta, answers_delta, answer_hits_delta),
+        )
 
     def _upsert_answer_row(
         self,
@@ -283,7 +352,7 @@ class CorpusStore:
         append_on_existing: bool,
         preset_count: int | None = None,
         preset_messages: list[str] | None = None,
-    ) -> None:
+    ) -> tuple[bool, int]:
         message = plain_message_text(message or "") or None
         preset_messages = [plain_message_text(m) for m in (preset_messages or []) if plain_message_text(m)]
         row = conn.execute(
@@ -313,8 +382,9 @@ class CorpusStore:
                     dumps_messages(messages),
                 ),
             )
-            return
-        count = int(row["count"]) + 1 if preset_count is None else int(preset_count)
+            return True, int(preset_count or 1)
+        previous_count = int(row["count"])
+        count = previous_count + 1 if preset_count is None else int(preset_count)
         messages = loads_messages(row["messages_json"])
         if preset_messages:
             for m in preset_messages:
@@ -330,6 +400,7 @@ class CorpusStore:
             """,
             (count, answer_time, dumps_messages(messages), khash, group_id, answer_keywords),
         )
+        return False, count - previous_count
 
     def bump_usage(
         self,
@@ -425,9 +496,13 @@ class CorpusStore:
     def aggregate_monitor_stats(self, *, online_cutoff_unix: int) -> dict[str, int]:
         recent_cutoff = int(time.time()) - 86400
         with self._lock, self._connect() as conn:
-            ctx_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_contexts").fetchone()
-            ans_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_answers").fetchone()
-            hits_row = conn.execute("SELECT COALESCE(SUM(count), 0) AS s FROM corpus_answers").fetchone()
+            stats_row = conn.execute(
+                """
+                SELECT contexts_total, answers_total, answer_hits_sum
+                FROM corpus_aggregate_stats
+                WHERE id = 1
+                """
+            ).fetchone()
             enr_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_tokens").fetchone()
             read_row = conn.execute("SELECT COUNT(*) AS c FROM corpus_tokens WHERE read_enabled = 1").fetchone()
             contrib_row = conn.execute(
@@ -451,9 +526,9 @@ class CorpusStore:
                 online_row = None
         enrollments_online = int(online_row["c"] if online_row else 0)
         return {
-            "contexts_total": int(ctx_row["c"] if ctx_row else 0),
-            "answers_total": int(ans_row["c"] if ans_row else 0),
-            "answer_hits_sum": int(hits_row["s"] if hits_row else 0),
+            "contexts_total": int(stats_row["contexts_total"] if stats_row else 0),
+            "answers_total": int(stats_row["answers_total"] if stats_row else 0),
+            "answer_hits_sum": int(stats_row["answer_hits_sum"] if stats_row else 0),
             "enrollments_total": int(enr_row["c"] if enr_row else 0),
             "enrollments_online": enrollments_online,
             "enrollments_recent_24h": int(recent_row["c"] if recent_row else 0),
