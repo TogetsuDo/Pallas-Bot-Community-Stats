@@ -1,0 +1,15 @@
+# 构建上下文瘦身：本地依赖/产物/运行态不进入镜像（npm ci / uv 会在镜像内重建）。
+.git
+.slim
+.venv
+__pycache__
+**/__pycache__
+*.py[cod]
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+data
+web/node_modules
+web/dist
+.env
+config/stats.toml

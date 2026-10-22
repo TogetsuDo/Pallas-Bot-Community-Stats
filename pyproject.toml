@@ -5,17 +5,17 @@ description = "Pallas-Bot 社区 opt-in 部署/在线统计中心服务"
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 dependencies = [
-    "fastapi>=0.115.0",
+    "fastapi>=0.141.1",
     "httpx>=0.28.1",
-    "pydantic>=2.10.0",
-    "pydantic-settings>=2.7.0",
-    "python-multipart>=0.0.20",
-    "uvicorn[standard]>=0.34.0",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "uvicorn[standard]>=0.52.4",
 ]
 
 [project.optional-dependencies]
 redis = [
-    "redis>=5.2,<6",
+    "redis>=5.3.1,<6",
 ]
 
 [dependency-groups]
@@ -31,6 +31,15 @@ pallas-community-stats = "pallas_community_stats.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+# 传递依赖的安全下限（仅 uv 解析生效；pip 路径由上面的直接依赖下限兜底）。
+constraint-dependencies = [
+    "anyio>=4.15.1",
+    "certifi>=2026.10.19",
+    "pyjwt>=2.15.1",
+    "starlette>=1.6.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pallas_community_stats"]
